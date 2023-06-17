@@ -56,7 +56,7 @@ public:
         }
     }
 
-    void draw_rectangle_rounded(int x0, int y0, int x1, int y1, int r, bool fill = false){
+    void draw_rectangle_rounded(int x0, int y0, int x1, int y1, int r){
         int x = r;
         int y = 0;
         int f = -(r << 1) + 3;
@@ -172,7 +172,8 @@ public:
 
         // Set or clear the bit at the specified index.
         lcd_buffer[byte_idx] 
-            = on ? (lcd_buffer[byte_idx] | bit_idx) : (lcd_buffer[byte_idx] & ~bit_idx);
+            = on ? (lcd_buffer[byte_idx] | bit_idx)
+                     : (lcd_buffer[byte_idx] & ~bit_idx);
     }
 
     uint8_t * lcd() { return lcd_buffer; }
