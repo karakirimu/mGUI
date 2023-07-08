@@ -69,20 +69,20 @@ public:
         while (x >= y)
         {
             // 1
-            draw_pixel(px1 + x, py0 + y, true);
-            draw_pixel(px1 - x, py0 - y, true);
+            draw_pixel(px1 + x, py0 - y, true);
+            draw_pixel(px1 + y, py0 - x, true);
             
             // 2
-            draw_pixel(px1 - x, py1 + y, true);
-            draw_pixel(px1 + x, py1 - y, true);
+            draw_pixel(px1 + x, py1 + y, true);
+            draw_pixel(px1 + y, py1 + x, true);
             
             // 3
-            draw_pixel(px0 + y, py1 + x, true);
-            draw_pixel(px0 - y, py1 - x, true);
+            draw_pixel(px0 - x, py1 + y, true);
+            draw_pixel(px0 - y, py1 + x, true);
 
             // 4
-            draw_pixel(px0 - y, py0 + x, true);
-            draw_pixel(px0 + y, py0 - x, true);
+            draw_pixel(px0 - x, py0 - y, true);
+            draw_pixel(px0 - y, py0 - x, true);
             if (f >= 0)
             {
                 x--;
@@ -168,7 +168,7 @@ public:
     void draw_pixel(int x, int y, bool on){
         // Calculate the byte index.
         int byte_idx = (y >> 3) * lcd_width + x;
-        uint8_t bit_idx = (1 << (y & 7));
+        uint8_t bit_idx = (1 << (7 - y % 8));
 
         // Set or clear the bit at the specified index.
         lcd_buffer[byte_idx] 
