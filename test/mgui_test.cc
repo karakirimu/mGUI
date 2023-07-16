@@ -96,6 +96,18 @@ TEST_P(DrawRectangleRoundedTest, On) {
   // debug_print(g.lcd()); // OK
 };
 
+TEST_P(DrawRectangleRoundedTest, Fill) {
+  mgui g(WIDTH, HEIGHT);
+  int x0 = std::get<0>(GetParam());
+  int y0 = std::get<1>(GetParam());
+  int x1 = std::get<2>(GetParam());
+  int y1 = std::get<3>(GetParam());
+  int r = std::get<4>(GetParam());
+
+  g.draw_rectangle_rounded(x0, y0, x1, y1, r, true);
+  // debug_print(g.lcd()); // OK
+};
+
 INSTANTIATE_TEST_SUITE_P(
   On,
   DrawRectangleRoundedTest,
@@ -115,6 +127,16 @@ TEST_P(DrawCircleTest, On) {
     int r = std::get<2>(GetParam());
 
     g.draw_circle(x0, y0, r);
+    // debug_print(g.lcd()); // OK
+};
+
+TEST_P(DrawCircleTest, Fill) {
+    mgui g(WIDTH, HEIGHT);
+    int x0 = std::get<0>(GetParam());
+    int y0 = std::get<1>(GetParam());
+    int r = std::get<2>(GetParam());
+
+    g.draw_circle(x0, y0, r, true);
     // debug_print(g.lcd()); // OK
 };
 

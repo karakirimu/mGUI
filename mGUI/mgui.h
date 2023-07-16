@@ -3,7 +3,7 @@
  * @author karakirimu
  * @brief Simple monochrome GUI operation program
  * @version 0.1
- * @date 2023-06-10
+ * @date 2023-07-16
  * 
  * @copyright Copyright (c) 2023 karakirimu
  * 
@@ -31,21 +31,35 @@ public:
         delete[] lcd_buffer;
     }
 
-    void draw_circle(int x0, int y0, int r) {
+    void draw_circle(int x0, int y0, int r, bool fill = false) {
+
+        if(fill){
+            draw_circle_fill(x0, y0, r);
+            return;
+        }
+
         int x = r;
         int y = 0;
         int f = -(r << 1) + 3;
 
         while (x >= y)
         {
+            // 1
             draw_pixel(x0 + x, y0 + y, true);
-            draw_pixel(x0 - x, y0 + y, true);
-            draw_pixel(x0 + x, y0 - y, true);
-            draw_pixel(x0 - x, y0 - y, true);
-            draw_pixel(x0 + y, y0 + x, true);
-            draw_pixel(x0 - y, y0 + x, true);
             draw_pixel(x0 + y, y0 - x, true);
+
+            // 2
+            draw_pixel(x0 + x, y0 - y, true);
+            draw_pixel(x0 + y, y0 + x, true);
+
+            // 3
+            draw_pixel(x0 - x, y0 + y, true);
+            draw_pixel(x0 - y, y0 + x, true);
+            
+            // 4
+            draw_pixel(x0 - x, y0 - y, true);
             draw_pixel(x0 - y, y0 - x, true);
+            
             if (f >= 0)
             {
                 x--;
@@ -56,7 +70,13 @@ public:
         }
     }
 
-    void draw_rectangle_rounded(int x0, int y0, int x1, int y1, int r){
+    void draw_rectangle_rounded(int x0, int y0, int x1, int y1, int r, bool fill = false){
+
+        if(fill){
+            draw_rectangle_rounded_fill(x0, y0, x1, y1, r);
+            return;
+        }
+
         int x = r;
         int y = 0;
         int f = -(r << 1) + 3;
@@ -105,11 +125,7 @@ public:
 
     void draw_rectangle(int x0, int y0, int x1, int y1, bool fill = false){
         if(fill){
-            for(int x = x0; x <= x1; x++){
-                for(int y = y0; y <= y1; y++){
-                    draw_pixel(x, y, true);
-                }
-            }
+            draw_rectangle_fill(x0, y0, x1, y1);
             return;
         }
 
@@ -180,6 +196,100 @@ public:
 
 private:
     // inline int abs(int x) { return x > 0 ? x : -x; }
+
+    inline void draw_circle_fill(int x0, int y0, int r) {
+        int x = r;
+        int y = 0;
+        int f = -(r << 1) + 3;
+
+        while (x >= y)
+        {
+
+            for(int xd = 0; xd < x; xd++){
+                // 1
+                draw_pixel(x0 + xd, y0 + y, true);
+                draw_pixel(x0 + y, y0 - xd, true);
+
+                // 2
+                draw_pixel(x0 + xd, y0 - y, true);
+                draw_pixel(x0 + y, y0 + xd, true);
+
+                // 3
+                draw_pixel(x0 - xd, y0 + y, true);
+                draw_pixel(x0 - y, y0 + xd, true);
+                
+                // 4
+                draw_pixel(x0 - xd, y0 - y, true);
+                draw_pixel(x0 - y, y0 - xd, true);
+            }
+            
+            if (f >= 0)
+            {
+                x--;
+                f -= (x << 2);
+            }
+            y++;
+            f += (y << 2) + 2;
+        }
+    }
+
+    inline void draw_rectangle_rounded_fill(int x0, int y0, int x1, int y1, int r){
+        int x = r;
+        int y = 0;
+        int f = -(r << 1) + 3;
+
+        int px0 = x0 + r;
+        int px1 = x1 - r;
+        int py0 = y0 + r;
+        int py1 = y1 - r;
+
+        while (x >= y)
+        {
+            for(int xd = 0; xd < x; xd++){
+                // 1
+                draw_pixel(px1 + xd, py0 - y, true);
+                draw_pixel(px1 + y, py0 - xd, true);
+                
+                // 2
+                draw_pixel(px1 + xd, py1 + y, true);
+                draw_pixel(px1 + y, py1 + xd, true);
+                
+                // 3
+                draw_pixel(px0 - xd, py1 + y, true);
+                draw_pixel(px0 - y, py1 + xd, true);
+
+                // 4
+                draw_pixel(px0 - xd, py0 - y, true);
+                draw_pixel(px0 - y, py0 - xd, true);
+            }
+
+            if (f >= 0)
+            {
+                x--;
+                f -= (x << 2);
+            }
+            y++;
+            f += (y << 2) + 2;
+        }
+
+        // fill side
+        for(int dx = 0; dx <= r; dx++){
+            for(int dy = py0; dy <= py1; dy++){
+                draw_pixel(x0 + dx, dy, true);
+                draw_pixel(px1 + dx, dy, true);
+            }
+        }
+
+        draw_rectangle_fill(px0, y0, px1, y1);
+    }
+
+    inline void draw_rectangle_fill(int x0, int y0, int x1, int y1){
+        for(int x = x0; x <= x1; x++){
+            for(int y = y0; y <= y1; y++){
+                draw_pixel(x, y, true);
+            }
+        }
+    }
 
     uint8_t *lcd_buffer;
     int lcd_width;
