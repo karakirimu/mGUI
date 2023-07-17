@@ -40,6 +40,23 @@ TEST_P(DrawPixelTest, On) {
   // debug_print(g.lcd());
 };
 
+TEST_P(DrawPixelTest, Invert) {
+  mgui_draw g(WIDTH, HEIGHT);
+  int x = std::get<0>(GetParam());
+  int y = std::get<1>(GetParam());
+  int ex = std::get<2>(GetParam());
+
+  g.draw_pixel_invert(x, y);
+
+  EXPECT_EQ(g.lcd()[_byte_index(x, y)], ex);
+
+  g.draw_pixel_invert(x, y);
+
+  EXPECT_EQ(g.lcd()[_byte_index(x, y)], 0);
+
+  // debug_print(g.lcd()); // OK
+};
+
 INSTANTIATE_TEST_SUITE_P(
   On,
   DrawPixelTest,

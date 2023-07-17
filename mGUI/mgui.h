@@ -20,6 +20,13 @@ enum mgui_draw_line_dir {
 
 class mgui_draw {
 public:
+
+    /**
+     * @brief Construct a new mgui draw object
+     * 
+     * @param width Target LCD width
+     * @param height Target LCD height
+     */
     mgui_draw(const uint8_t width, const uint8_t height){
         lcd_width = width;
         lcd_height = height;
@@ -27,6 +34,11 @@ public:
         lcd_buffer = new uint8_t[size];
         memset(lcd_buffer, 0, size);
     }
+
+    /**
+     * @brief Destroy the mgui draw object
+     * 
+     */
     ~mgui_draw(){
         delete[] lcd_buffer;
     }
@@ -190,6 +202,15 @@ public:
         lcd_buffer[byte_idx] 
             = on ? (lcd_buffer[byte_idx] | bit_idx)
                      : (lcd_buffer[byte_idx] & ~bit_idx);
+    }
+
+    void draw_pixel_invert(int x, int y){
+        // Calculate the byte index.
+        int byte_idx = (y >> 3) * lcd_width + x;
+        uint8_t bit_idx = (1 << (7 - y % 8));
+
+        // invert the bit at the specified index.
+        lcd_buffer[byte_idx] ^= bit_idx;
     }
 
     uint8_t * lcd() { return lcd_buffer; }
