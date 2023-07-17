@@ -28,7 +28,7 @@ class DrawPixelTest :
     public testing::TestWithParam<P_A3> {};
 
 TEST_P(DrawPixelTest, On) {
-  mgui g(WIDTH, HEIGHT);
+  mgui_draw g(WIDTH, HEIGHT);
   int x = std::get<0>(GetParam());
   int y = std::get<1>(GetParam());
   int ex = std::get<2>(GetParam());
@@ -85,7 +85,7 @@ class DrawRectangleRoundedTest :
     public testing::TestWithParam<P_A5> {};
 
 TEST_P(DrawRectangleRoundedTest, On) {
-  mgui g(WIDTH, HEIGHT);
+  mgui_draw g(WIDTH, HEIGHT);
   int x0 = std::get<0>(GetParam());
   int y0 = std::get<1>(GetParam());
   int x1 = std::get<2>(GetParam());
@@ -97,7 +97,7 @@ TEST_P(DrawRectangleRoundedTest, On) {
 };
 
 TEST_P(DrawRectangleRoundedTest, Fill) {
-  mgui g(WIDTH, HEIGHT);
+  mgui_draw g(WIDTH, HEIGHT);
   int x0 = std::get<0>(GetParam());
   int y0 = std::get<1>(GetParam());
   int x1 = std::get<2>(GetParam());
@@ -121,7 +121,7 @@ class DrawCircleTest :
     public testing::TestWithParam<P_A3> {};
 
 TEST_P(DrawCircleTest, On) {
-    mgui g(WIDTH, HEIGHT);
+    mgui_draw g(WIDTH, HEIGHT);
     int x0 = std::get<0>(GetParam());
     int y0 = std::get<1>(GetParam());
     int r = std::get<2>(GetParam());
@@ -131,7 +131,7 @@ TEST_P(DrawCircleTest, On) {
 };
 
 TEST_P(DrawCircleTest, Fill) {
-    mgui g(WIDTH, HEIGHT);
+    mgui_draw g(WIDTH, HEIGHT);
     int x0 = std::get<0>(GetParam());
     int y0 = std::get<1>(GetParam());
     int r = std::get<2>(GetParam());
@@ -153,7 +153,7 @@ class DrawRectangleTest :
     public testing::TestWithParam<P_A5> {};
 
 TEST_P(DrawRectangleTest, On) {
-    mgui g(WIDTH, HEIGHT);
+    mgui_draw g(WIDTH, HEIGHT);
     int x0 = std::get<0>(GetParam());
     int y0 = std::get<1>(GetParam());
     int x1 = std::get<2>(GetParam());

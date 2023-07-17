@@ -13,21 +13,21 @@
 typedef unsigned char uint8_t;
 
 // enums
-enum mgui_line_dir {
+enum mgui_draw_line_dir {
     Left,
     Down
 };
 
-class mgui {
+class mgui_draw {
 public:
-    mgui(const uint8_t width, const uint8_t height){
+    mgui_draw(const uint8_t width, const uint8_t height){
         lcd_width = width;
         lcd_height = height;
         int size = width * (height >> 3);
         lcd_buffer = new uint8_t[size];
         memset(lcd_buffer, 0, size);
     }
-    ~mgui(){
+    ~mgui_draw(){
         delete[] lcd_buffer;
     }
 
@@ -165,9 +165,9 @@ public:
         }
     }
 
-    void draw_line_straight(int x0, int y0, int length, bool on, mgui_line_dir direction) {
+    void draw_line_straight(int x0, int y0, int length, bool on, mgui_draw_line_dir direction) {
 
-        if (direction == mgui_line_dir::Left) {
+        if (direction == mgui_draw_line_dir::Left) {
             int xlast = x0 + length;
             for (int x = x0; x < xlast; x++) {
                 draw_pixel(x, y0, on);
