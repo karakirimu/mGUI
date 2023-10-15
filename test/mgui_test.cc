@@ -2,6 +2,7 @@
 #include <gmock/gmock.h>
 
 #include "../mGUI/mgui.h"
+#include "font_16x8.h"
 #include <iostream>
 
 constexpr int WIDTH = 128;
@@ -28,29 +29,41 @@ class DrawPixelTest :
     public testing::TestWithParam<P_A3> {};
 
 TEST_P(DrawPixelTest, On) {
-  mgui_draw g(WIDTH, HEIGHT);
+  mgui g(WIDTH, HEIGHT);
   int x = std::get<0>(GetParam());
   int y = std::get<1>(GetParam());
   int ex = std::get<2>(GetParam());
 
-  g.draw_pixel(x, y, true);
+  mgui_pixel pixel;
+  pixel.set_x(x);
+  pixel.set_y(y);
+  pixel.set_on(true);
+
+  g.add((mgui_object *)&pixel);
+  g.display();
 
   EXPECT_EQ(g.lcd()[_byte_index(x, y)], ex);
-
-  // debug_print(g.lcd());
+  
 };
 
 TEST_P(DrawPixelTest, Invert) {
-  mgui_draw g(WIDTH, HEIGHT);
+  mgui g(WIDTH, HEIGHT);
   int x = std::get<0>(GetParam());
   int y = std::get<1>(GetParam());
   int ex = std::get<2>(GetParam());
 
-  g.draw_pixel_invert(x, y);
+  mgui_pixel pixel;
+  pixel.set_x(x);
+  pixel.set_y(y);
+  pixel.set_invert(true);
+
+  g.add((mgui_object *)&pixel);
+
+  g.display();
 
   EXPECT_EQ(g.lcd()[_byte_index(x, y)], ex);
 
-  g.draw_pixel_invert(x, y);
+  g.display();
 
   EXPECT_EQ(g.lcd()[_byte_index(x, y)], 0);
 
@@ -102,26 +115,47 @@ class DrawRectangleRoundedTest :
     public testing::TestWithParam<P_A5> {};
 
 TEST_P(DrawRectangleRoundedTest, On) {
-  mgui_draw g(WIDTH, HEIGHT);
+  mgui g(WIDTH, HEIGHT);
+
   int x0 = std::get<0>(GetParam());
   int y0 = std::get<1>(GetParam());
   int x1 = std::get<2>(GetParam());
   int y1 = std::get<3>(GetParam());
   int r = std::get<4>(GetParam());
+  
+  mgui_rectangle rectangle;
 
-  g.draw_rectangle_rounded(x0, y0, x1, y1, r);
+  rectangle.set_x(x0);
+  rectangle.set_y(y0);
+  rectangle.set_width(x1 - x0);
+  rectangle.set_height(y1 - y0);
+  rectangle.set_radius(r);
+
+  g.add((mgui_object*)&rectangle);
+  g.display();
   // debug_print(g.lcd()); // OK
 };
 
 TEST_P(DrawRectangleRoundedTest, Fill) {
-  mgui_draw g(WIDTH, HEIGHT);
+  mgui g(WIDTH, HEIGHT);
   int x0 = std::get<0>(GetParam());
   int y0 = std::get<1>(GetParam());
   int x1 = std::get<2>(GetParam());
   int y1 = std::get<3>(GetParam());
   int r = std::get<4>(GetParam());
 
-  g.draw_rectangle_rounded(x0, y0, x1, y1, r, true);
+  mgui_rectangle rectangle;
+
+  rectangle.set_x(x0);
+  rectangle.set_y(y0);
+  rectangle.set_width(x1 - x0);
+  rectangle.set_height(y1 - y0);
+  rectangle.set_radius(r);
+  rectangle.set_fill(true);
+
+  g.add((mgui_object*)&rectangle);
+  g.display();
+
   // debug_print(g.lcd()); // OK
 };
 
@@ -138,22 +172,37 @@ class DrawCircleTest :
     public testing::TestWithParam<P_A3> {};
 
 TEST_P(DrawCircleTest, On) {
-    mgui_draw g(WIDTH, HEIGHT);
+    mgui g(WIDTH, HEIGHT);
     int x0 = std::get<0>(GetParam());
     int y0 = std::get<1>(GetParam());
     int r = std::get<2>(GetParam());
 
-    g.draw_circle(x0, y0, r);
+    mgui_circle circle;
+    circle.set_x(x0);
+    circle.set_y(y0);
+    circle.set_radius(r);
+
+    g.add((mgui_object *)&circle);
+
+    g.display();
     // debug_print(g.lcd()); // OK
 };
 
 TEST_P(DrawCircleTest, Fill) {
-    mgui_draw g(WIDTH, HEIGHT);
+    mgui g(WIDTH, HEIGHT);
     int x0 = std::get<0>(GetParam());
     int y0 = std::get<1>(GetParam());
     int r = std::get<2>(GetParam());
 
-    g.draw_circle(x0, y0, r, true);
+    mgui_circle circle;
+    circle.set_x(x0);
+    circle.set_y(y0);
+    circle.set_radius(r);
+    circle.set_fill(true);
+
+    g.add((mgui_object *)&circle);
+
+    g.display();
     // debug_print(g.lcd()); // OK
 };
 
@@ -170,14 +219,23 @@ class DrawRectangleTest :
     public testing::TestWithParam<P_A5> {};
 
 TEST_P(DrawRectangleTest, On) {
-    mgui_draw g(WIDTH, HEIGHT);
+    mgui g(WIDTH, HEIGHT);
     int x0 = std::get<0>(GetParam());
     int y0 = std::get<1>(GetParam());
     int x1 = std::get<2>(GetParam());
     int y1 = std::get<3>(GetParam());
     bool fill = std::get<4>(GetParam());
 
-    g.draw_rectangle(x0, y0, x1, y1, fill);
+    mgui_rectangle rectangle;
+
+    rectangle.set_x(x0);
+    rectangle.set_y(y0);
+    rectangle.set_width(x1 - x0);
+    rectangle.set_height(y1 - y0); 
+    rectangle.set_fill(fill);
+
+    g.add((mgui_object*)&rectangle);
+    g.display();
     // debug_print(g.lcd()); // OK
 };
 
@@ -187,5 +245,91 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Values(
         P_A5{ 0, 0, 15, 15, true },
         P_A5{ 4, 4, 24, 24, false }
+    )
+);
+
+class DrawTextTest :
+    public testing::TestWithParam<std::tuple<int, int, std::string>> {};
+
+TEST_P(DrawTextTest, On) {
+    mgui g(WIDTH, HEIGHT);
+    int x0 = std::get<0>(GetParam());
+    int y0 = std::get<1>(GetParam());
+    std::string textdata = std::get<2>(GetParam());
+
+    font_16x8 prop;
+    mgui_text text;
+
+    text.set_x(x0);
+    text.set_y(y0);
+    text.set_font(&prop);
+    text.set_text(textdata.c_str());
+
+    g.add((mgui_object *)&text);
+    g.display();
+    // debug_print(g.lcd()); // OK
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    On,
+    DrawTextTest,
+    testing::Values(
+        std::tuple<int, int, std::string>{ 0, 0, "Hello" },
+        std::tuple<int, int, std::string>{ 10, 20, "World" }
+    )
+);
+
+class ButtonTest :
+    public testing::TestWithParam<std::tuple<int, int, std::string>> {};
+
+static bool onFunc() {
+    return true;
+};
+
+TEST_P(ButtonTest, On) {
+    mgui g(WIDTH, HEIGHT);
+    int x0 = std::get<0>(GetParam());
+    int y0 = std::get<1>(GetParam());
+    std::string textdata = std::get<2>(GetParam());
+
+    font_16x8 prop;
+    mgui_button button(x0, y0);
+    button.set_text(textdata.c_str(), &prop, 1, 2);
+    button.set_radius(2);
+    button.set_on_press(&onFunc);
+    
+    g.add((mgui_object*)&button);
+    g.display();
+    // debug_print(g.lcd()); // OK
+};
+
+static bool offFunc() {
+    return false;
+};
+
+TEST_P(ButtonTest, Off) {
+    mgui g(WIDTH, HEIGHT);
+    int x0 = std::get<0>(GetParam());
+    int y0 = std::get<1>(GetParam());
+    std::string textdata = std::get<2>(GetParam());
+
+    font_16x8 prop;
+    mgui_button button(x0, y0);
+    button.set_text(textdata.c_str(), &prop, 1, 2);
+    button.set_radius(2);
+    button.set_on_press(&offFunc);
+
+    g.add((mgui_object*)&button);
+    g.display();
+    // debug_print(g.lcd()); // OK
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    On,
+    ButtonTest,
+    testing::Values(
+        std::tuple<int, int, std::string>{ 0, 0, "Hello" },
+        std::tuple<int, int, std::string>{ 5, 5, "Hello" },
+        std::tuple<int, int, std::string>{ 10, 20, "W" }
     )
 );
