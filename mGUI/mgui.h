@@ -235,30 +235,6 @@ public:
     }
 
     /**
-     * @brief Set the value for vertical 8px.
-     * 
-     * @param x top left point of X
-     * @param y top left point of Y
-     * @param value byte value to set
-     */
-    //void draw_virtical_8px(int x, int y, uint8_t value) {
-    //    int byte_idx = (y >> 3) * lcd_width + x;
-    //    lcd_buffer[byte_idx] = value;
-    //}
-
-    //void draw_virtical_1px(int x, int y, uint8_t value) {
-    //    // Calculate the byte index.
-    //    int byte_idx = (y >> 3) * lcd_width + x;
-    //    uint8_t bit_idx = (1 << (7 - y % 8));
-    //    bool on = (value & bit_idx) & bit_idx;
-
-    //    // Set or clear the bit at the specified index.
-    //    lcd_buffer[byte_idx] 
-    //        = on ? (lcd_buffer[byte_idx] | bit_idx)
-    //                 : (lcd_buffer[byte_idx] & ~bit_idx);
-    //}
-
-    /**
      * @brief It returns generated buffer.
      * 
      * @return uint8_t* 
@@ -755,21 +731,6 @@ public:
 
 private:
     inline void draw_char(mgui_draw* draw, int x, int y, int index) {               
-        //if(font()->font_height() % 8 == 0
-        //    && x % 8 == 0
-        //    && y % 8 == 0){
-        //    int vh = font()->font_height() / 8;
-        //    for(int y0 = 0; y0 < vh; y0++) {
-        //        int vy = y0 * 8;
-        //        for(int x0 = 0; x0 < font()->font_width(); x0++) {
-        //            int pos = index + vy + x0;
-        //            uint8_t value = (invert_)? ~(font()->resource()[pos]) : font()->resource()[pos];
-        //            draw->draw_virtical_8px(x+x0, y + vy, value);
-        //        }
-        //    }
-        //    return;
-        //}
-
         for(int y1 = 0; y1 < font()->font_height(); y1++) {
             for(int x1 = 0; x1 < font()->font_width(); x1++) {
                 int pos = index + y1 / 8 * font()->font_width() + x1;
