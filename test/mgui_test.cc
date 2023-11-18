@@ -24,6 +24,8 @@ void debug_print(uint8_t *data) {
 typedef std::tuple<int, int, int> P_A3;
 typedef std::tuple<int, int, int, int> P_A4;
 typedef std::tuple<int, int, int, int, int> P_A5;
+typedef std::tuple<int, int, int, int, int, int> P_A6;
+typedef std::tuple<int, int, int, int, int, int, int> P_A7;
 
 class DrawPixelTest :
     public testing::TestWithParam<P_A3> {};
@@ -248,6 +250,44 @@ INSTANTIATE_TEST_SUITE_P(
     )
 );
 
+class DrawTriangleTest :
+    public testing::TestWithParam<P_A7> {};
+
+TEST_P(DrawTriangleTest, On) {
+    mgui g(WIDTH, HEIGHT);
+    int x0 = std::get<0>(GetParam());
+    int y0 = std::get<1>(GetParam());
+    int x1 = std::get<2>(GetParam());
+    int y1 = std::get<3>(GetParam());
+    int x2 = std::get<4>(GetParam());
+    int y2 = std::get<5>(GetParam());
+    bool invert = std::get<6>(GetParam());
+
+    mgui_triangle triangle;
+
+    triangle.set_x0(x0);
+    triangle.set_y0(y0);
+    triangle.set_x1(x1);
+    triangle.set_y1(y1);
+    triangle.set_x2(x2);
+    triangle.set_y2(y2);
+    triangle.set_invert(invert);
+
+    g.add((mgui_object*)&triangle);
+    g.display();
+    //debug_print(g.lcd()); // OK
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    On,
+    DrawTriangleTest,
+    testing::Values(
+        P_A7{ 0, 0, 9, 21, 21, 21, false },
+        P_A7{ 4, 4, 24, 24, 16, 16, false },
+        P_A7{ 16, 16, 8, 32, 24, 32, false }
+    )
+);
+
 class DrawTextTest :
     public testing::TestWithParam<std::tuple<int, int, std::string>> {};
 
@@ -331,5 +371,42 @@ INSTANTIATE_TEST_SUITE_P(
         std::tuple<int, int, std::string>{ 0, 0, "Hello" },
         std::tuple<int, int, std::string>{ 5, 5, "Hello" },
         std::tuple<int, int, std::string>{ 10, 20, "W" }
+    )
+);
+
+class MenuItemTest :
+    public testing::TestWithParam<std::tuple<int, int, std::string>> {};
+
+TEST_P(MenuItemTest, Selected) {
+    mgui g(WIDTH, HEIGHT);
+    int x0 = std::get<0>(GetParam());
+    int y0 = std::get<1>(GetParam());
+    std::string textdata = std::get<2>(GetParam());
+
+    font_16x8 prop;
+    mgui_menu_item menu_item(x0, y0, WIDTH, 16);
+    menu_item.set_text(textdata.c_str(), &prop, 1, 2);
+    menu_item.set_radius(2);
+    menu_item.set_selected(true);
+
+    mgui_menu_item menu_item2(x0, y0 + 31, WIDTH, 16);
+    menu_item2.set_text(textdata.c_str(), &prop, 1, 2);
+    menu_item2.set_radius(2);
+    menu_item2.set_selected(false);
+
+    g.add((mgui_object*)&menu_item);
+    g.add((mgui_object*)&menu_item2);
+    g.display();
+    debug_print(g.lcd()); // OK
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    Selected,
+    MenuItemTest,
+    testing::Values(
+        std::tuple<int, int, std::string>{ 0, 0, "Hello" },
+        std::tuple<int, int, std::string>{ 0, 0, "012345678" },
+        std::tuple<int, int, std::string>{ 0, 0, "W" },
+        std::tuple<int, int, std::string>{ 0, 0, "x >" }
     )
 );

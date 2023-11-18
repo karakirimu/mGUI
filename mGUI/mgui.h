@@ -27,7 +27,8 @@ enum mgui_draw_type {
     Pixel,
     Text,
     Button,
-    MenuItem
+    MenuItem,
+    Menu
 };
 
 class mgui_draw {
@@ -165,6 +166,13 @@ public:
             draw_pixel(x0, y, true);
             draw_pixel(x1, y, true);
         }
+    }
+
+    void draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, bool invert = false) {
+        
+        draw_line(x0, y0, x1, y1, !invert);
+        draw_line(x0, y0, x2, y2, !invert);
+        draw_line(x1, y1, x2, y2, !invert);
     }
 
     void draw_line(int x0, int y0, int x1, int y1, bool on){
@@ -669,16 +677,70 @@ public:
 
         if(r_ > 0){
             draw->draw_rectangle_rounded(
-                x(), y(), x() + width(), y() + height(), r_, fill_);
+                x(), y(), x() + width() - 1, y() + height() - 1, r_, fill_);
             return;
         }
 
-        draw->draw_rectangle(x(), y(), x() + width(), y() + height(), fill_);
+        draw->draw_rectangle(x(), y(), x() + width() - 1, y() + height() - 1, fill_);
     }
 
 private:
     uint16_t r_;
     uint8_t fill_;
+};
+
+/**
+ * @brief It draws triangle.
+ *
+ */
+class mgui_triangle : mgui_object {
+public:
+    mgui_triangle() {
+        x0_ = 0;
+        y0_ = 0;
+        x1_ = 0;
+        y1_ = 0;
+        x2_ = 0;
+        y2_ = 0;
+        invert_ = 0;
+    }
+    virtual ~mgui_triangle() {}
+
+    mgui_draw_type type() const { return mgui_draw_type::Circle; }
+
+    inline uint16_t x0() const { return x0_; }
+    inline void set_x0(uint16_t x0) { x0_ = x0; }
+
+    inline uint16_t y0() const { return y0_; }
+    inline void set_y0(uint16_t y0) { y0_ = y0; }
+
+    inline uint16_t x1() const { return x1_; }
+    inline void set_x1(uint16_t x1) { x1_ = x1; }
+
+    inline uint16_t y1() const { return y1_; }
+    inline void set_y1(uint16_t y1) { y1_ = y1; }
+
+    inline uint16_t x2() const { return x2_; }
+    inline void set_x2(uint16_t x2) { x2_ = x2; }
+
+    inline uint16_t y2() const { return y2_; }
+    inline void set_y2(uint16_t y2) { y2_ = y2; }
+
+    inline uint16_t invert() const { return invert_; }
+    inline void set_invert(uint16_t invert) { invert_ = invert; }
+
+    void update(mgui_draw* draw) {
+        draw->draw_triangle(x0_, y0_, x1_, y1_, x2_, y2_, invert_);
+    }
+
+private:
+    uint16_t x0_;
+    uint16_t y0_;
+    uint16_t x1_;
+    uint16_t y1_;
+    uint16_t x2_;
+    uint16_t y2_;
+    uint8_t invert_;
 };
 
 /**
@@ -774,13 +836,6 @@ private:
     int text_length;
 };
 
-// class mgui_menu_item : mgui_draw, mgui_base_property, mgui_object {
-// public:
-//     void menu_item(bool select){
-
-//     }
-// };
-
  class mgui_button : mgui_base_property, mgui_object {
  public:
      mgui_button(uint16_t x, uint16_t y) {
@@ -854,6 +909,163 @@ private:
      uint16_t text_rel_x_;
      uint16_t text_rel_y_;
 
+ };
+
+ class mgui_menu_item : mgui_object {
+ public:
+     mgui_menu_item(uint16_t x = 0, uint16_t y = 0, uint16_t w = 0, uint16_t h = 0) {
+         rect_.set_x(x);
+         rect_.set_y(y);
+         text_.set_x(x);
+         text_.set_y(y);
+         rect_.set_width(w);
+         rect_.set_height(h);
+         rect_.set_fill(true);
+         child_menu_ = nullptr;
+     }
+
+     mgui_draw_type type() const { return mgui_draw_type::MenuItem; }
+
+     void update(mgui_draw* draw) {
+         if (selected_) {
+             rect_.update(draw);
+         }
+
+         text_.set_invert(selected_);
+         text_.update(draw);
+
+         if(child_menu_) {
+            // draw triangle
+         }
+     }
+
+     inline uint16_t radius() const { return rect_.radius(); }
+     inline void set_radius(uint16_t radius) {
+         rect_.set_radius(radius);
+     }
+
+     inline char* text() const { return text_.text(); }
+     inline void set_text(const char* text, mgui_font_property* font, uint16_t text_rel_x = 0, uint16_t text_rel_y = 0) {
+         text_.set_font(font);
+         text_.set_text(text);
+         text_rel_x_ = text_rel_x;
+         text_rel_y_ = text_rel_y;
+         update_property();
+     }
+
+     inline void set_child_menu(mgui_menu* menu) {
+         child_menu_ = menu;
+     }
+     inline mgui_menu* child_menu() { return child_menu_; }
+
+     inline void set_selected(bool selected) { selected_ = selected; }
+     inline bool selected() { return selected_; }
+
+ private:
+     inline void update_property() {
+         text_.set_x(text_.x() + text_rel_x_);
+         text_.set_y(text_.y() + text_rel_y_);
+     }
+
+     bool selected_;
+     mgui_menu* child_menu_;
+     mgui_rectangle rect_;
+     mgui_text text_;
+     uint16_t text_rel_x_;
+     uint16_t text_rel_y_;
+ };
+
+ class mgui_menu : mgui_object {
+ public:
+     mgui_menu() {
+         list = new mgui_list();
+         moved_from = nullptr;
+         selected_index_ = 0;
+     }
+     ~mgui_menu() {
+         delete list;
+     }
+
+     mgui_draw_type type() const { return mgui_draw_type::Menu; }
+     void update(mgui_draw* draw) {
+
+        if(on_return_) {
+            if(moved_from) {
+                *this = *moved_from;
+            }
+        }
+
+        if(on_enter_) {
+            if(list->get(selected_index_)){
+                mgui_menu* menu = ((mgui_menu_item*)list->get(selected_index_))->child_menu();
+
+                if(menu) {
+                    moved_from = this;
+                    *this = *menu; 
+                }
+            }
+        }
+
+        if(on_select_prev_){
+            if(selected_index_ > 0){
+                ((mgui_menu_item*)list->get(selected_index_))->set_selected(false);
+                selected_index_--;
+                ((mgui_menu_item*)list->get(selected_index_))->set_selected(true);
+            }
+        }
+
+        if(on_select_next_){
+            if(selected_index_ < list->count() - 1){
+                ((mgui_menu_item*)list->get(selected_index_))->set_selected(false);
+                selected_index_++;
+                ((mgui_menu_item*)list->get(selected_index_))->set_selected(true);
+            }
+        }
+     }
+
+     inline void add(mgui_menu_item* item) {
+         list->add((mgui_object*)item);
+     }
+
+     inline void remove(mgui_menu_item* item) {
+         list->remove((mgui_object*)item);
+     }
+
+     inline uint16_t selected_index() const { return selected_index_; }
+     inline void set_selected_index(uint16_t index_) { selected_index_ = index_; }
+
+     /**
+      * @brief Return specified menu list.
+      * @param on_enter The callback, this returns some button pressed.
+      */
+     inline void set_on_return(bool (*on_return)()) { on_return_ = on_return; }
+     
+     /**
+      * @brief Specified menu item entered.
+      * @param on_enter The callback, this returns some button pressed.
+      */
+     inline void set_on_enter(bool (*on_enter)()) { on_enter_ = on_enter; }
+
+     /**
+      * @brief Menu selection change event handler
+      * @param on_select_next The callback, this returns a .
+      */
+     inline void set_on_select_next(uint16_t (*on_select_next)()) { on_select_next_ = on_select_next; }
+
+     /**
+      * @brief Menu selection change event handler
+      * @param on_select_prev The callback, this returns a .
+      */
+     inline void set_on_select_prev(uint16_t (*on_select_prev)()) { on_select_prev_ = on_select_prev; }
+
+ private:
+     uint16_t (*on_select_prev_)();
+     uint16_t (*on_select_next_)();
+     bool (*on_return_)();
+     bool (*on_enter_)();
+     mgui_list* list;
+     mgui_menu* moved_from;
+     uint16_t selected_index_;
  };
 
 #endif _MGUI_H_
