@@ -1,4 +1,4 @@
-//
+//////
 // font_16x8.h
 // Orientation: Vertical
 //
@@ -104,7 +104,7 @@ static uint8_t font[] = {
 
 class font_16x8 : public mgui_font_property {
 public:
-    font_16x8() {
+    font_16x8(): mgui_font_property() {
         set_font_width(8);
         set_font_height(16);
         set_resource(font);

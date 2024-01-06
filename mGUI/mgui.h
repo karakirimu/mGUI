@@ -8,8 +8,8 @@
  * @copyright Copyright (c) 2023 karakirimu
  * 
  */
-#ifndef _MGUI_H_
-#define _MGUI_H_
+#ifndef MGUI_H
+#define MGUI_H
 
 // typedefs
 typedef unsigned char uint8_t;
@@ -21,16 +21,22 @@ enum mgui_draw_line_dir {
     Down
 };
 
-enum mgui_draw_type {
+enum mgui_object_type {
     Rectangle,
     Circle,
+    Triangle,
     Pixel,
     Text,
     Button,
     MenuItem,
-    Menu
+    Menu,
+    UiGroup
 };
 
+/**
+ * @brief 
+ * Set a pixel, line, or shape at an arbitrary position in the preallocated lcd buffer array
+ */
 class mgui_draw {
 public:
 
@@ -40,7 +46,7 @@ public:
      * @param width Target LCD width
      * @param height Target LCD height
      */
-    mgui_draw(const uint8_t width, const uint8_t height, uint8_t *buffer){
+    explicit mgui_draw(const uint8_t width, const uint8_t height, uint8_t *buffer){
         lcd_width = width;
         lcd_height = height;
         lcd_buffer = buffer;
@@ -216,30 +222,24 @@ public:
         }
     }
 
+    /**
+     * @brief Sets the color at the specified position
+     * 
+     * @param x x position
+     * @param y y position
+     * @param on 
+     * If true, the bit at the position corresponding to (x,y) is set to 1;
+     * if false, it is set to 0
+     */
     void draw_pixel(int x, int y, bool on){
         // Calculate the byte index.
         int byte_idx = (y >> 3) * lcd_width + x;
-        uint8_t bit_idx = (1 << (7 - y % 8));
+        uint8_t bit_idx = (1 << (y % 8));
 
         // Set or clear the bit at the specified index.
         lcd_buffer[byte_idx] 
             = on ? (lcd_buffer[byte_idx] | bit_idx)
                      : (lcd_buffer[byte_idx] & ~bit_idx);
-    }
-
-    /**
-     * @brief Invert specified position.
-     * 
-     * @param x position of x
-     * @param y position of y
-     */
-    void draw_pixel_invert(int x, int y){
-        // Calculate the byte index.
-        int byte_idx = (y >> 3) * lcd_width + x;
-        uint8_t bit_idx = (1 << (7 - y % 8));
-
-        // invert the bit at the specified index.
-        lcd_buffer[byte_idx] ^= bit_idx;
     }
 
     /**
@@ -288,6 +288,15 @@ private:
         }
     }
 
+    /**
+     * @brief Draw a filled rounded corner rectangle
+     * 
+     * @param x0 x position at upper left
+     * @param y0 y position at upper left
+     * @param x1 x position at bottom right
+     * @param y1 y position of bottom right
+     * @param r rounded corner radius
+     */
     inline void draw_rectangle_rounded_fill(int x0, int y0, int x1, int y1, int r){
         int x = r;
         int y = 0;
@@ -338,6 +347,14 @@ private:
         draw_rectangle_fill(px0, y0, px1, y1);
     }
 
+    /**
+     * @brief Draw a filled rectangle
+     * 
+     * @param x0 x position at upper left
+     * @param y0 y position at upper left
+     * @param x1 x position at bottom right
+     * @param y1 y position at bottom right
+     */
     inline void draw_rectangle_fill(int x0, int y0, int x1, int y1){
         for(int x = x0; x <= x1; x++){
             for(int y = y0; y <= y1; y++){
@@ -353,47 +370,99 @@ private:
 
 class mgui_object {
 public:
-    virtual mgui_draw_type type() const = 0;
+    virtual mgui_object_type type() const = 0;
     virtual void update(mgui_draw* draw) = 0;
 };
 
+template <typename O>
 struct mgui_list_node {
-  mgui_object* obj;
+  O obj;
   mgui_list_node* next;
 };
 
+template <typename T>
 class mgui_list {
  public:
   mgui_list() {
     head = nullptr;
+    tail = nullptr;
     counter = 0;
   }
 
-  ~mgui_list() {
-    while(counter > 0){
-        remove(head->obj);
-    }
+  mgui_list(const mgui_list& other) {
+      head = nullptr;
+      tail = nullptr;
+      counter = 0;
+
+      for (mgui_list_node<T>* node = other.head; node != nullptr; node = node->next) {
+          add(node->obj);
+      }
   }
 
-  void add(mgui_object* item) {
-    mgui_list_node* node = new mgui_list_node();
+  mgui_list& operator=(const mgui_list& other) {
+      if (this != &other) {
+          clear();
+          for (mgui_list_node<T>* node = other.head; node != nullptr; node = node->next) {
+              add(node->obj);
+          }
+      }
+      return *this;
+  }
+
+  mgui_list(mgui_list&& other) noexcept {
+      head = other.head;
+      tail = other.tail;
+      counter = other.counter;
+
+      other.head = nullptr;
+      other.tail = nullptr;
+      other.counter = 0;
+  }
+
+  mgui_list& operator=(mgui_list&& other) noexcept {
+      if (this != &other) {
+          clear();
+
+          head = other.head;
+          tail = other.tail;
+          counter = other.counter;
+
+          other.head = nullptr;
+          other.tail = nullptr;
+          other.counter = 0;
+      }
+      return *this;
+  }
+
+  ~mgui_list() {
+    clear();
+  }
+
+  void add(const T &item) {
+    mgui_list_node<T>* node = new mgui_list_node<T>();
     node->obj = item;
-    node->next = head;
-    head = node;
+    node->next = nullptr;
+
+    if(head == nullptr){
+        head = node;
+    }else{
+        tail->next = node;
+    }
+    tail = node;
     counter++;
   }
 
-  mgui_object* get(int index) {
-    mgui_list_node* node = head;
+  const T get(const int index) {
+    mgui_list_node<T>* node = head;
     for (int i = 0; i < index; i++) {
       node = node->next;
     }
     return node->obj;
   }
 
-  void remove(mgui_object* item) {
-    mgui_list_node* current_node = head;
-    mgui_list_node* prev_node = nullptr;
+  void remove(const T &item) {
+    mgui_list_node<T>* current_node = head;
+    mgui_list_node<T>* prev_node = nullptr;
     
     while (current_node != nullptr)
     {
@@ -405,24 +474,80 @@ class mgui_list {
     }
 
     if(current_node == nullptr){
+        // No item found
         return;
     }
     
     if(prev_node == nullptr){
+        // First item removed
         head = current_node->next;
+
+        if (head == nullptr) {
+            // No item listed
+            tail = nullptr;
+        }
+
     }else{
+        // Other
         prev_node->next = current_node->next;
+
+        if(current_node->next == nullptr){
+            // Last item removed
+            tail = prev_node;
+        }
     }
     delete current_node;
     counter--;
   }
 
-  inline int count() { return counter; }
-  inline mgui_list_node* first() { return head; }
+  void clear() {
+    while(counter > 0){
+        remove(head->obj);
+    }
+  }
+
+  inline int count() const { return counter; }
+  inline mgui_list_node<T>* first() { return head; }
+  inline mgui_list_node<T>* last() { return tail; }
 
  private:
-  mgui_list_node* head;
+  mgui_list_node<T>* head;
+  mgui_list_node<T>* tail;
   int counter;
+};
+
+
+template <typename T>
+class mgui_stack {
+public:
+    mgui_stack() {
+        head_ = nullptr;
+    }
+
+    ~mgui_stack() {
+        while (head_ != nullptr) {
+            pop();
+        }
+    }
+
+    void push(const T &item) {
+        mgui_list_node<T>* node = new mgui_list_node<T>();
+        node->obj = item;
+        node->next = head_;
+        head_ = node;
+    }
+
+    T pop() {
+        mgui_list_node<T>* node = head_;
+        head_ = node->next;
+
+        return static_cast<T&&>(node->obj);
+    }
+
+    inline bool is_empty() const { return head_ == nullptr; }
+
+private:
+    mgui_list_node<T>* head_;
 };
 
 class mgui {
@@ -433,14 +558,14 @@ public:
      * @param width Target LCD width
      * @param height Target LCD height
      */
-    mgui(const uint8_t width, const uint8_t height) {
+    explicit mgui(const uint8_t width, const uint8_t height) {
         lcd_width = width;
         lcd_height = height;
-        int size = width * (height >> 3);
-        lcd_buffer = new uint8_t[size];
-        memset(lcd_buffer, 0, size);
+        buffer_size = width * (height >> 3);
+        lcd_buffer = new uint8_t[buffer_size]();
+        memset(lcd_buffer, 0, buffer_size);
         draw = new mgui_draw(width, height, lcd_buffer);
-        list = new mgui_list();
+        list = new mgui_list<mgui_object*>();
     }
 
     ~mgui() {
@@ -457,9 +582,17 @@ public:
         list->remove(item);
     }
 
-    inline void display() {
-        mgui_list_node* node = list->first();
+    inline void clear(){
+        list->clear();
+    }
 
+    inline void update_lcd() {
+        mgui_list_node<mgui_object*>* node = list->first();
+
+        // clear buffer
+        memset(lcd_buffer, 0, buffer_size);
+
+        // set settings
         while(node != nullptr){
             node->obj->update(draw);
             node = node->next;
@@ -470,23 +603,32 @@ public:
 
 private:
     mgui_draw* draw;
-    mgui_list* list;
+    mgui_list<mgui_object*>* list;
     uint8_t* lcd_buffer;
     int lcd_width;
     int lcd_height;
+    int buffer_size;
 };
 
 class mgui_base_property {
 public:
-    mgui_base_property() {
-        x_ = 0;
-        y_ = 0;
-        width_ = 0;
-        height_ = 0;
+    /**
+     * @brief Construct a new mgui base property object
+     * The arguments of this constructor default to 0,
+     * since it is not necessary to set the entire argument
+     * on the part of the inherited class.
+     * 
+     * @param x LCD X position
+     * @param y LCD Y position
+     * @param width Width of objects that inherit this property
+     * @param height Height of objects that inherit this property
+     */
+    mgui_base_property(uint16_t x = 0, uint16_t y = 0, uint16_t width = 0, uint16_t height = 0) {
+        x_ = x;
+        y_ = y;
+        width_ = width;
+        height_ = height;
     };
-
-    mgui_base_property(const uint16_t& width_, const uint16_t& height_, const uint16_t& x_, const uint16_t& y_)
-        : width_(width_), height_(height_), x_(x_), y_(y_) {}
 
     bool operator==(const mgui_base_property& other) const
     {
@@ -553,6 +695,12 @@ private:
 
 class mgui_font_property {
 public:
+    mgui_font_property() {
+        font_width_ = 0;
+        font_height_ = 0;
+        resource_ = nullptr;
+    }
+
     inline uint16_t font_width() const { return font_width_; }
     inline void set_font_width(uint16_t font_width) { font_width_ = font_width; }
 
@@ -584,7 +732,7 @@ public:
     }
     virtual ~mgui_pixel(){}
 
-    mgui_draw_type type() const { return mgui_draw_type::Pixel; }
+    mgui_object_type type() const { return mgui_object_type::Pixel; }
 
     inline uint16_t x() const { return x_; }
     inline void set_x(uint16_t x) { x_ = x; }
@@ -600,7 +748,7 @@ public:
 
     void update(mgui_draw* draw) {
         if(invert_) {
-            draw->draw_pixel_invert(x_, y_);
+            draw->draw_pixel(x_, y_, !on_);
             return;
         }
 
@@ -628,7 +776,7 @@ public:
     }
     virtual ~mgui_circle(){}
 
-    mgui_draw_type type() const { return mgui_draw_type::Circle; }
+    mgui_object_type type() const { return mgui_object_type::Circle; }
 
     inline uint16_t x() const { return x_; }
     inline void set_x(uint16_t x) { x_ = x; }
@@ -665,7 +813,7 @@ public:
     }
     virtual ~mgui_rectangle() {}
 
-    mgui_draw_type type() const { return mgui_draw_type::Rectangle; }
+    mgui_object_type type() const { return mgui_object_type::Rectangle; }
 
     inline uint16_t radius() const { return r_; }
     inline void set_radius(uint16_t r) { r_ = r; }
@@ -706,7 +854,7 @@ public:
     }
     virtual ~mgui_triangle() {}
 
-    mgui_draw_type type() const { return mgui_draw_type::Circle; }
+    mgui_object_type type() const { return mgui_object_type::Triangle; }
 
     inline uint16_t x0() const { return x0_; }
     inline void set_x0(uint16_t x0) { x0_ = x0; }
@@ -726,8 +874,8 @@ public:
     inline uint16_t y2() const { return y2_; }
     inline void set_y2(uint16_t y2) { y2_ = y2; }
 
-    inline uint16_t invert() const { return invert_; }
-    inline void set_invert(uint16_t invert) { invert_ = invert; }
+    inline uint8_t invert() const { return invert_; }
+    inline void set_invert(uint8_t invert) { invert_ = invert; }
 
     void update(mgui_draw* draw) {
         draw->draw_triangle(x0_, y0_, x1_, y1_, x2_, y2_, invert_);
@@ -748,9 +896,25 @@ private:
  */
 class mgui_text : public mgui_base_property, mgui_object {
 public:
-    mgui_text() {
+    /**
+     * @brief Construct a new mgui text object
+     * 
+     * @param font The inherited class of mgui_font_property
+     * @param text Text to display
+     * @param x X position in the upper left corner where mgui_font_property resource is displayed
+     * @param y Y position in the upper left corner where mgui_font_property resource is displayed
+     */
+    mgui_text(mgui_font_property *font, const char* text = nullptr, uint16_t x = 0, uint16_t y = 0) {
+        font_ = font;
         text_ = nullptr;
         text_index_ = nullptr;
+        text_length = 0;
+
+        if(text) {
+            set_text(text);
+        }
+        set_x(x);
+        set_y(y);
         invert_ = false;
     }
 
@@ -758,7 +922,7 @@ public:
         reset_text_();
     }
 
-    mgui_draw_type type() const { return mgui_draw_type::Text; }
+    mgui_object_type type() const { return mgui_object_type::Text; }
     
     void update(mgui_draw* draw) {
         for(int i = 0; i < text_length; i++) {
@@ -836,39 +1000,102 @@ private:
     int text_length;
 };
 
- class mgui_button : mgui_base_property, mgui_object {
+/**
+ * @brief 
+ * UI that requires operation such as buttons and menus are always objects that
+ * must be inherited. 
+ */
+class mgui_core_ui : public mgui_object {
+public:
+    mgui_core_ui() {
+        on_press_ = false;
+        on_selected_ = false;
+    }
+    virtual ~mgui_core_ui() {
+        on_press_ = false;
+        on_selected_ = false;
+    }
+
+    /**
+     * @brief
+     * Set the press state of an element
+     * 
+     * @param on_press If true, the state is pressed; if false, the state is not pressed
+     */
+    inline void set_on_press(bool on_press) { on_press_ = on_press; }
+
+    /**
+     * @brief
+     * Get the pressed state of an element
+     * 
+     * @return true Pressed
+     * @return false Not pressed
+     */
+    inline bool get_on_press() const { return on_press_; }
+
+    /**
+     * @brief
+     * Set the selection state of an element
+     * 
+     * @param on_selected If true, selected; if false, not selected
+     */
+    inline void set_on_selected(bool on_selected) { on_selected_ = on_selected; }
+
+    /**
+     * @brief 
+     * Get the selection state of an element
+     * 
+     * @return true Selected
+     * @return false Not selected
+     */
+    inline bool get_on_selected() const { return on_selected_; }
+
+private:
+    bool on_press_;
+    bool on_selected_;
+};
+
+class mgui_button : public mgui_core_ui {
  public:
-     mgui_button(uint16_t x, uint16_t y) {
-         set_x(x);
-         set_y(y);
+
+     /**
+      * @brief Construct a new button object
+      * 
+      * @param x X position in the upper left corner
+      * @param y Y position in the upper left corner
+      * @param width Width of button (ignored if text is set)
+      * @param height Height of button (ignored if text is set)
+      */
+     explicit mgui_button(uint16_t x, uint16_t y, uint16_t width = 0, uint16_t height = 0)
+         : mgui_core_ui() {
+         rect_.set_x(x);
+         rect_.set_y(y);
+         rect_.set_width(width);
+         rect_.set_height(height);
          text_rel_x_ = 0;
          text_rel_y_ = 0;
-     };
-     ~mgui_button() {
-         on_press_ = nullptr;
-     };
+         text_ = nullptr;
 
-     mgui_draw_type type() const { return mgui_draw_type::Button; };
+     };
+     ~mgui_button(){};
+
+     mgui_object_type type() const { return mgui_object_type::Button; };
 
      void update(mgui_draw* draw) {
-         uint8_t press = (*on_press_)();
-         rect_.set_fill(press);
-         text_.set_invert(press);
-         rect_.update(draw);
-         text_.update(draw);
+        bool is_filled = get_on_selected()? !get_on_press() : get_on_press();
+
+        rect_.set_fill(is_filled);
+        rect_.update(draw);
+
+        if (text_) {
+            text_->set_invert(is_filled);
+            text_->update(draw);
+        }
      };
 
-     inline void set_on_press(bool (*on_press)()) { on_press_ = on_press; };
-
-     inline uint16_t radius() const { return rect_.radius(); }
-     inline void set_radius(uint16_t radius) {
-         rect_.set_radius(radius);
-     }
-
-     inline char* text() const { return text_.text(); }
-     inline void set_text(const char* text, mgui_font_property *font, uint16_t text_rel_x = 0, uint16_t text_rel_y = 0) {
-         text_.set_font(font);
-         text_.set_text(text);
+     inline mgui_text* text() const { return text_; }
+     inline void set_text(mgui_text* text, uint16_t text_rel_x = 0, uint16_t text_rel_y = 0) {
+         text_ = text;
          text_rel_x_ = text_rel_x;
          text_rel_y_ = text_rel_y;
          update_property();
@@ -881,191 +1108,395 @@ private:
          padding_.set_down(down);
          update_property();
      }
-     
-     inline mgui_padding_property padding() {
-         return padding_;
-     }
+     inline mgui_padding_property padding() const { return padding_; }
+
+     inline uint16_t width() const { return rect_.width(); }
+     inline void set_width(uint16_t width) { rect_.set_width(width); }
+
+     inline uint16_t height() const { return rect_.height(); }
+     inline void set_height(uint16_t height) { rect_.set_height(height); }
+
+     inline uint16_t radius() const { return rect_.radius(); }
+     inline void set_radius(uint16_t r) { rect_.set_radius(r); }
 
  private:
      inline void update_property() {
-         uint16_t w = text_.width() + padding_.left() + padding_.right();
-         uint16_t h = text_.height() + padding_.up() + padding_.down();
+         uint16_t rect_w = text_->width() + padding_.left() + padding_.right();
+         uint16_t rect_h = text_->height() + padding_.up() + padding_.down();
 
-         uint16_t rx = x();
-         uint16_t ry = y();
+         uint16_t rx = rect_.x();
+         uint16_t ry = rect_.y();
          rect_.set_x(rx);
          rect_.set_y(ry);
-         rect_.set_width(w);
-         rect_.set_height(h);
+         rect_.set_width(rect_w == 0 ? rect_.width() : rect_w);
+         rect_.set_height(rect_h == 0 ? rect_.height() : rect_h);
 
-         text_.set_x(rx + text_rel_x_ + padding_.left());
-         text_.set_y(ry + text_rel_y_ + padding_.up());
+         text_->set_x(rx + text_rel_x_ + padding_.left());
+         text_->set_y(ry + text_rel_y_ + padding_.up());
      }
 
      mgui_padding_property padding_;
-     bool (*on_press_)();
-     mgui_rectangle rect_;
-     mgui_text text_;
+     mgui_text *text_;
      uint16_t text_rel_x_;
      uint16_t text_rel_y_;
-
+     mgui_rectangle rect_;
  };
 
- class mgui_menu_item : mgui_object {
- public:
-     mgui_menu_item(uint16_t x = 0, uint16_t y = 0, uint16_t w = 0, uint16_t h = 0) {
-         rect_.set_x(x);
-         rect_.set_y(y);
-         text_.set_x(x);
-         text_.set_y(y);
-         rect_.set_width(w);
-         rect_.set_height(h);
-         rect_.set_fill(true);
-         child_menu_ = nullptr;
-     }
+/**
+ * @brief 
+ * Attribute information shared to create a hierarchical menu structure
+ */
+class mgui_menu_property {
+public:
+    mgui_menu_property() {
+        selected_index_ = 0;
+    }
+    virtual ~mgui_menu_property(){}
 
-     mgui_draw_type type() const { return mgui_draw_type::MenuItem; }
+    inline mgui_menu_property* get_property() { return this; }
 
-     void update(mgui_draw* draw) {
-         if (selected_) {
-             rect_.update(draw);
-         }
+    mgui_list<mgui_core_ui*> menu_item_;
+    uint16_t selected_index_;
+};
 
-         text_.set_invert(selected_);
-         text_.update(draw);
+class mgui_menu_item : public mgui_core_ui {
+public:
+    explicit mgui_menu_item(uint16_t x = 0, uint16_t y = 0, uint16_t w = 0, uint16_t h = 0)
+        : mgui_core_ui() {
+        rect_.set_x(x);
+        rect_.set_y(y);
+        rect_.set_width(w);
+        rect_.set_height(h);
+        rect_.set_fill(true);
+        text_ = nullptr;
+        text_rel_x_ = 0;
+        text_rel_y_ = 0;
+        child_menu_ = nullptr;
+    }
+    ~mgui_menu_item(){}
 
-         if(child_menu_) {
+    mgui_object_type type() const { return mgui_object_type::MenuItem; }
+
+    void update(mgui_draw* draw) {
+        bool is_filled = get_on_selected()? !get_on_press() : get_on_press();
+
+        rect_.set_fill(is_filled);
+        rect_.update(draw);
+ 
+        if (text_) {
+            text_->set_invert(is_filled);
+            text_->update(draw);
+        }
+
+        if(child_menu_) {
             // draw triangle
-         }
-     }
-
-     inline uint16_t radius() const { return rect_.radius(); }
-     inline void set_radius(uint16_t radius) {
-         rect_.set_radius(radius);
-     }
-
-     inline char* text() const { return text_.text(); }
-     inline void set_text(const char* text, mgui_font_property* font, uint16_t text_rel_x = 0, uint16_t text_rel_y = 0) {
-         text_.set_font(font);
-         text_.set_text(text);
-         text_rel_x_ = text_rel_x;
-         text_rel_y_ = text_rel_y;
-         update_property();
-     }
-
-     inline void set_child_menu(mgui_menu* menu) {
-         child_menu_ = menu;
-     }
-     inline mgui_menu* child_menu() { return child_menu_; }
-
-     inline void set_selected(bool selected) { selected_ = selected; }
-     inline bool selected() { return selected_; }
-
- private:
-     inline void update_property() {
-         text_.set_x(text_.x() + text_rel_x_);
-         text_.set_y(text_.y() + text_rel_y_);
-     }
-
-     bool selected_;
-     mgui_menu* child_menu_;
-     mgui_rectangle rect_;
-     mgui_text text_;
-     uint16_t text_rel_x_;
-     uint16_t text_rel_y_;
- };
-
- class mgui_menu : mgui_object {
- public:
-     mgui_menu() {
-         list = new mgui_list();
-         moved_from = nullptr;
-         selected_index_ = 0;
-     }
-     ~mgui_menu() {
-         delete list;
-     }
-
-     mgui_draw_type type() const { return mgui_draw_type::Menu; }
-     void update(mgui_draw* draw) {
-
-        if(on_return_) {
-            if(moved_from) {
-                *this = *moved_from;
-            }
         }
+    }
 
-        if(on_enter_) {
-            if(list->get(selected_index_)){
-                mgui_menu* menu = ((mgui_menu_item*)list->get(selected_index_))->child_menu();
+    inline uint16_t radius() const { return rect_.radius(); }
+    inline void set_radius(uint16_t radius) { rect_.set_radius(radius); }
 
-                if(menu) {
-                    moved_from = this;
-                    *this = *menu; 
-                }
-            }
+    inline uint16_t width() const { return rect_.width(); }
+    inline void set_width(uint16_t width) { rect_.set_width(width); }
+    
+    inline uint16_t height() const { return rect_.height(); }
+    inline void set_height(uint16_t height) { rect_.set_height(height); }
+    
+    inline uint16_t x() const { return rect_.x(); }
+    inline void set_x(uint16_t x) { rect_.set_x(x); }
+    
+    inline uint16_t y() const { return rect_.y(); }
+    inline void set_y(uint16_t y) { rect_.set_y(y); }
+
+    inline mgui_text* text() const { return text_; }
+    inline void set_text(mgui_text* text, uint16_t text_rel_x = 0, uint16_t text_rel_y = 0) {
+        text_ = text;
+        text_->set_x(rect_.x());
+        text_->set_y(rect_.y());
+        text_rel_x_ = text_rel_x;
+        text_rel_y_ = text_rel_y;
+        update_property();
+    }
+
+    inline void set_menu(mgui_menu_property* menu) { child_menu_ = menu; }
+    inline mgui_menu_property* menu() { return child_menu_; }
+
+private:
+    inline void update_property() {
+        text_->set_x(text_->x() + text_rel_x_);
+        text_->set_y(text_->y() + text_rel_y_);
+    }
+
+    mgui_menu_property* child_menu_;
+    mgui_rectangle rect_;
+    mgui_text *text_;
+    uint16_t text_rel_x_;
+    uint16_t text_rel_y_;
+};
+
+class mgui_menu : mgui_object {
+public:
+    mgui_menu(){
+        moved_from_ = new mgui_stack<mgui_menu_property>();
+    }
+    ~mgui_menu(){
+        delete moved_from_;
+    }
+
+    mgui_object_type type() const { return mgui_object_type::Menu; }
+    void update(mgui_draw* draw) {
+        mgui_list_node<mgui_core_ui*>* node = p.menu_item_.first();
+        while (node != nullptr) {
+            node->obj->update(draw);
+            node = node->next;
         }
+    }
 
-        if(on_select_prev_){
-            if(selected_index_ > 0){
-                ((mgui_menu_item*)list->get(selected_index_))->set_selected(false);
-                selected_index_--;
-                ((mgui_menu_item*)list->get(selected_index_))->set_selected(true);
-            }
+    inline void add(mgui_core_ui* item) {
+        if (item->type() == mgui_object_type::MenuItem) {
+            p.menu_item_.add(item);
         }
+    }
 
-        if(on_select_next_){
-            if(selected_index_ < list->count() - 1){
-                ((mgui_menu_item*)list->get(selected_index_))->set_selected(false);
-                selected_index_++;
-                ((mgui_menu_item*)list->get(selected_index_))->set_selected(true);
-            }
+    inline void remove(mgui_core_ui* item) {
+        if (item->type() == mgui_object_type::MenuItem) {
+            p.menu_item_.remove(item);
         }
-     }
+    }
 
-     inline void add(mgui_menu_item* item) {
-         list->add((mgui_object*)item);
-     }
+    inline uint16_t selected_index() const { return p.selected_index_; }
+    inline void set_selected_index(uint16_t index_) { p.selected_index_ = index_; }
 
-     inline void remove(mgui_menu_item* item) {
-         list->remove((mgui_object*)item);
-     }
+    inline mgui_menu_property* get_property() { return p.get_property(); }
 
-     inline uint16_t selected_index() const { return selected_index_; }
-     inline void set_selected_index(uint16_t index_) { selected_index_ = index_; }
+    inline mgui_menu_item* get_selected_item() {
+        return static_cast<mgui_menu_item*>(p.menu_item_.get(p.selected_index_));
+    }
 
-     /**
-      * @brief Return specified menu list.
-      * @param on_enter The callback, this returns some button pressed.
-      */
-     inline void set_on_return(bool (*on_return)()) { on_return_ = on_return; }
+    /**
+    * @brief Return specified menu list.
+    * @param on_enter The callback, this returns some button pressed.
+    */
+    inline void set_on_return(bool on_return) {
+        if (on_return && moved_from_->is_empty() == false) {
+            p = static_cast<mgui_menu_property&&>(moved_from_->pop());
+        }
+    }
      
-     /**
-      * @brief Specified menu item entered.
-      * @param on_enter The callback, this returns some button pressed.
-      */
-     inline void set_on_enter(bool (*on_enter)()) { on_enter_ = on_enter; }
+    /**
+    * @brief Specified menu item entered.
+    * @param on_enter The callback, this returns some button pressed.
+    */
+    inline void set_on_enter(bool on_enter) {
+        p.menu_item_.get(p.selected_index_)->set_on_press(on_enter);
+        mgui_menu_property *menu = get_selected_item()->menu();
 
-     /**
-      * @brief Menu selection change event handler
-      * @param on_select_next The callback, this returns a .
-      */
-     inline void set_on_select_next(uint16_t (*on_select_next)()) { on_select_next_ = on_select_next; }
+        if (menu) {
+            // set own copy
+            moved_from_->push(p);
 
-     /**
-      * @brief Menu selection change event handler
-      * @param on_select_prev The callback, this returns a .
-      */
-     inline void set_on_select_prev(uint16_t (*on_select_prev)()) { on_select_prev_ = on_select_prev; }
+            // update
+            p.menu_item_ = menu->menu_item_;
+            p.selected_index_ = menu->selected_index_;
+        }
+    }
 
- private:
-     uint16_t (*on_select_prev_)();
-     uint16_t (*on_select_next_)();
-     bool (*on_return_)();
-     bool (*on_enter_)();
-     mgui_list* list;
-     mgui_menu* moved_from;
-     uint16_t selected_index_;
- };
+    /**
+    * @brief
+    * Change the element selection to one after the other. If there is no element
+    * later than the currently selected element, nothing is done.
+    *
+    * @param on_select_next
+    * If true, set the flag to set the element one element later; if false, do nothing.
+    */
+    inline void set_on_select_next(bool on_select_next) {
+        if (!on_select_next) {
+            return;
+        }
 
-#endif _MGUI_H_
+        if (p.selected_index_ < p.menu_item_.count() - 1) {
+            p.menu_item_.get(p.selected_index_)->set_on_selected(false);
+            p.menu_item_.get(p.selected_index_)->set_on_press(false);
+            p.selected_index_++;
+            p.menu_item_.get(p.selected_index_)->set_on_selected(true);
+        }
+    }
+
+    /**
+    * @brief
+    * Changes the selection of an element to the one before it. If no element
+    * precedes the currently selected element, nothing is done.
+    *
+    * @param on_select_prev
+    * If true, set the flag to set the element to one previous element; if false, do nothing.
+    */
+    inline void set_on_select_prev(bool on_select_prev) {
+        if (!on_select_prev) {
+            return;
+        }
+
+        if (p.selected_index_ > 0) {
+            p.menu_item_.get(p.selected_index_)->set_on_selected(false);
+            p.menu_item_.get(p.selected_index_)->set_on_press(false);
+            p.selected_index_--;
+            p.menu_item_.get(p.selected_index_)->set_on_selected(true);
+        }
+    }
+
+private:
+    mgui_menu_property p;
+    mgui_stack<mgui_menu_property> *moved_from_;
+};
+
+/**
+* @brief
+* - This class is used to assist in changing and confirming the selected button
+*   on the screen in situations where there are few physical buttons relative to
+*   the number of buttons on the screen. 
+* 
+* - If multiple buttons can be operated simultaneously, such as on a touch panel,
+*   this class is not necessary, and it is more appropriate to set input operations
+*   directly on mgui_button, etc.
+* 
+* - The order in which UIs are moved is the order in which they are assigned to
+*   the add function.
+* 
+* @remarks
+* - An example of using this class is when there are five on-screen buttons,
+*   one physical button, and one rotary encoder, and the rotary encoder is
+*   used to change the button selection, and the physical button is used to
+*   confirm the selection.
+*/
+class mgui_ui_group : mgui_object {
+public:
+    mgui_ui_group() {
+        list = new mgui_list<mgui_core_ui*>();
+        selected_index_ = 0;
+    }
+    ~mgui_ui_group() {
+        delete list;
+    }
+
+    mgui_object_type type() const { return mgui_object_type::UiGroup; }
+
+    void update(mgui_draw* draw) {
+        mgui_list_node<mgui_core_ui*>* node = list->first();
+        while (node != nullptr) {
+            node->obj->update(draw);
+            node = node->next;
+        }
+    }
+
+    /**
+    * @brief
+    * Register the UI to be operated within this group
+    * @param item Elements to be added
+    */
+    inline void add(mgui_core_ui* item) { 
+    list->add(item);
+    reset_selection();
+    }
+
+    /**
+    * @brief
+    * Unregister the UI to be operated within this group
+    * @param item Elements to be removed
+    */
+    inline void remove(mgui_core_ui* item) {
+        list->remove(item);
+        reset_selection();
+    }
+
+    inline void set_selected_index(uint16_t index_) { selected_index_ = index_; }
+    inline uint16_t get_selected_index() const { return selected_index_; }
+
+    /**
+    * @brief
+    * Change the element selection to one after the other. If there is no element
+    * later than the currently selected element, nothing is done.
+    * 
+    * @param on_select_next 
+    * If true, set the flag to set the element one element later; if false, do nothing.
+    */
+    inline void set_on_select_next(bool on_select_next) {
+        if (!on_select_next) {
+            return;
+        }
+
+        if (selected_index_ < list->count() - 1) {
+            ((mgui_core_ui*)list->get(selected_index_))->set_on_selected(false);
+            ((mgui_core_ui*)list->get(selected_index_))->set_on_press(false);
+            selected_index_++;
+            ((mgui_core_ui*)list->get(selected_index_))->set_on_selected(true);
+        }
+    }
+
+    /**
+    * @brief
+    * Changes the selection of an element to the one before it. If no element
+    * precedes the currently selected element, nothing is done.
+    * 
+    * @param on_select_prev
+    * If true, set the flag to set the element to one previous element; if false, do nothing.
+    */
+    inline void set_on_select_prev(bool on_select_prev) { 
+        if (!on_select_prev) {
+            return;
+        }
+
+        if (selected_index_ > 0) {
+            ((mgui_core_ui*)list->get(selected_index_))->set_on_selected(false);
+            ((mgui_core_ui*)list->get(selected_index_))->set_on_press(false);
+            selected_index_--;
+            ((mgui_core_ui*)list->get(selected_index_))->set_on_selected(true);
+        }
+    }
+
+    /**
+    * @brief 
+    * Set the press state of the currently selected element
+    * @param on_press If true, the state is pressed; if false, the state is not pressed
+    */
+    inline void set_on_press(bool on_press) {
+    ((mgui_core_ui*)list->get(selected_index_))->set_on_press(on_press);
+    }
+
+    /**
+    * @brief 
+    * Get the pressed state of the currently selected element
+    * @return true Pressed
+    * @return false Not pressed
+    */
+    inline bool get_on_press() const { 
+    return ((mgui_core_ui*)list->get(selected_index_))->get_on_press();
+    }
+
+private:
+     
+    /**
+    * @brief 
+    * Resets the selection state and press state of all elements and sets the selection
+    * index to 0.
+    */
+    inline void reset_selection() {
+        selected_index_ = 0;
+        mgui_list_node<mgui_core_ui*>* node = list->first();
+        if(node == nullptr){
+        return;
+        }
+
+        node->obj->set_on_press(false);
+        node->obj->set_on_selected(true);
+        node = node->next;
+
+        while (node != nullptr) {
+            node->obj->set_on_press(false);
+            node->obj->set_on_selected(false);
+            node = node->next;
+        } 
+    }
+    mgui_list<mgui_core_ui*>* list;
+    uint16_t selected_index_;
+};
+
+#endif // MGUI_H

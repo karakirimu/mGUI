@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include "gtest/gtest.h"
+#include "gmock/gmock.h"
 
 #include "../mGUI/mgui.h"
 #include "font_16x8.h"
@@ -21,6 +21,101 @@ void debug_print(uint8_t *data) {
     std::cout << std::endl;
 }
 
+TEST(List, Order) {
+    mgui_list<int> test;
+
+    test.add(0);
+    test.add(1);
+    test.add(2);
+    test.add(3);
+    test.add(4);
+    test.add(5);
+
+    EXPECT_EQ(test.get(0), 0);
+    EXPECT_EQ(test.get(1), 1);
+    EXPECT_EQ(test.get(2), 2);
+    EXPECT_EQ(test.get(3), 3);
+    EXPECT_EQ(test.get(4), 4);
+    EXPECT_EQ(test.get(5), 5);
+};
+
+TEST(List, Remove_Index) {
+    mgui_list<int> test;
+
+    test.add(0);
+    test.add(1);
+    test.add(2);
+    test.add(3);
+    test.add(4);
+    test.add(5);
+
+    EXPECT_EQ(test.get(0), 0);
+    EXPECT_EQ(test.get(1), 1);
+    EXPECT_EQ(test.get(2), 2);
+    EXPECT_EQ(test.get(3), 3);
+    EXPECT_EQ(test.get(4), 4);
+    EXPECT_EQ(test.get(5), 5);
+
+    // Remove first
+    test.remove(0);
+    EXPECT_EQ(test.get(0), 1);
+
+    // Remove middle
+    test.remove(2);
+    EXPECT_EQ(test.get(0), 1);
+    EXPECT_EQ(test.get(1), 3);
+
+    // Remove last
+    test.remove(5);
+    EXPECT_EQ(test.get(0), 1);
+    EXPECT_EQ(test.get(1), 3);
+    EXPECT_EQ(test.get(2), 4);
+
+    EXPECT_EQ(test.first()->obj, 1);
+    EXPECT_EQ(test.last()->obj, 4);
+};
+
+TEST(Stack, basic) {
+    mgui_stack<int> test;
+    test.push(0);
+    test.push(1);
+    test.push(2);
+    test.push(3);
+    test.push(4);
+    test.push(5);
+
+    EXPECT_EQ(test.is_empty(), false);
+    EXPECT_EQ(test.pop(), 5);
+    EXPECT_EQ(test.pop(), 4);
+    EXPECT_EQ(test.pop(), 3);
+    EXPECT_EQ(test.pop(), 2);
+    EXPECT_EQ(test.pop(), 1);
+    EXPECT_EQ(test.pop(), 0);
+    EXPECT_EQ(test.is_empty(), true);
+}
+
+TEST(Stack, object) {
+    mgui_stack<int*> test;
+    int data[] = { 0,1,2,3,4,5 };
+
+
+    test.push(&data[0]);
+    test.push(&data[1]);
+    test.push(&data[2]);
+    test.push(&data[3]);
+    test.push(&data[4]);
+    test.push(&data[5]);
+
+    EXPECT_EQ(test.is_empty(), false);
+    EXPECT_EQ(test.pop(), &data[5]);
+    EXPECT_EQ(test.pop(), &data[4]);
+    EXPECT_EQ(test.pop(), &data[3]);
+    EXPECT_EQ(test.pop(), &data[2]);
+    EXPECT_EQ(test.pop(), &data[1]);
+    EXPECT_EQ(test.pop(), &data[0]);
+    EXPECT_EQ(test.is_empty(), true);
+}
+
 typedef std::tuple<int, int, int> P_A3;
 typedef std::tuple<int, int, int, int> P_A4;
 typedef std::tuple<int, int, int, int, int> P_A5;
@@ -29,6 +124,47 @@ typedef std::tuple<int, int, int, int, int, int, int> P_A7;
 
 class DrawPixelTest :
     public testing::TestWithParam<P_A3> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    On,
+    DrawPixelTest,
+    testing::Values(
+        P_A3{ 0, 0, 1 },
+        P_A3{ 0, 1, 2 },
+        P_A3{ 0, 2, 4 },
+        P_A3{ 0, 3, 8 },
+        P_A3{ 0, 4, 16 },
+        P_A3{ 0, 5, 32 },
+        P_A3{ 0, 6, 64 },
+        P_A3{ 0, 7, 128 },
+        P_A3{ 0, 8, 1 },
+        P_A3{ 1, 0, 1 },
+        P_A3{ 2, 0, 1 },
+        P_A3{ 3, 0, 1 },
+        P_A3{ 4, 0, 1 },
+        P_A3{ 5, 0, 1 },
+        P_A3{ 6, 0, 1 },
+        P_A3{ 7, 0, 1 },
+        P_A3{ 8, 0, 1 },
+        P_A3{ 1, 1, 2 },
+        P_A3{ 2, 2, 4 },
+        P_A3{ 3, 3, 8 },
+        P_A3{ 4, 4, 16 },
+        P_A3{ 5, 5, 32 },
+        P_A3{ 6, 6, 64 },
+        P_A3{ 7, 7, 128 },
+        P_A3{ 8, 8, 1 },
+        P_A3{ 56, 56, 1 },
+        P_A3{ 57, 57, 2 },
+        P_A3{ 58, 58, 4 },
+        P_A3{ 59, 59, 8 },
+        P_A3{ 60, 60, 16 },
+        P_A3{ 61, 61, 32 },
+        P_A3{ 62, 62, 64 },
+        P_A3{ 63, 63, 128 },
+        P_A3{ 64, 0, 1 }
+    )
+);
 
 TEST_P(DrawPixelTest, On) {
   mgui g(WIDTH, HEIGHT);
@@ -42,7 +178,7 @@ TEST_P(DrawPixelTest, On) {
   pixel.set_on(true);
 
   g.add((mgui_object *)&pixel);
-  g.display();
+  g.update_lcd();
 
   EXPECT_EQ(g.lcd()[_byte_index(x, y)], ex);
   
@@ -61,57 +197,17 @@ TEST_P(DrawPixelTest, Invert) {
 
   g.add((mgui_object *)&pixel);
 
-  g.display();
+  g.update_lcd();
 
   EXPECT_EQ(g.lcd()[_byte_index(x, y)], ex);
 
-  g.display();
+  pixel.set_invert(false);
+  g.update_lcd();
 
   EXPECT_EQ(g.lcd()[_byte_index(x, y)], 0);
 
   // debug_print(g.lcd()); // OK
 };
-
-INSTANTIATE_TEST_SUITE_P(
-  On,
-  DrawPixelTest,
-  testing::Values(
-    P_A3{0, 0, 128},
-    P_A3{0, 1, 64},
-    P_A3{0, 2, 32},
-    P_A3{0, 3, 16},
-    P_A3{0, 4, 8},
-    P_A3{0, 5, 4},
-    P_A3{0, 6, 2},
-    P_A3{0, 7, 1},
-    P_A3{0, 8, 128},
-    P_A3{1, 0, 128},
-    P_A3{2, 0, 128},
-    P_A3{3, 0, 128},
-    P_A3{4, 0, 128},
-    P_A3{5, 0, 128},
-    P_A3{6, 0, 128},
-    P_A3{7, 0, 128},
-    P_A3{8, 0, 128},
-    P_A3{1, 1, 64},
-    P_A3{2, 2, 32},
-    P_A3{3, 3, 16},
-    P_A3{4, 4, 8},
-    P_A3{5, 5, 4},
-    P_A3{6, 6, 2},
-    P_A3{7, 7, 1},
-    P_A3{8, 8, 128},
-    P_A3{56, 56, 128},
-    P_A3{57, 57, 64},
-    P_A3{58, 58, 32},
-    P_A3{59, 59, 16},
-    P_A3{60, 60, 8},
-    P_A3{61, 61, 4},
-    P_A3{62, 62, 2},
-    P_A3{63, 63, 1},
-    P_A3{64, 0, 128}
-  )
-);
 
 class DrawRectangleRoundedTest :
     public testing::TestWithParam<P_A5> {};
@@ -134,7 +230,7 @@ TEST_P(DrawRectangleRoundedTest, On) {
   rectangle.set_radius(r);
 
   g.add((mgui_object*)&rectangle);
-  g.display();
+  g.update_lcd();
   // debug_print(g.lcd()); // OK
 };
 
@@ -156,7 +252,7 @@ TEST_P(DrawRectangleRoundedTest, Fill) {
   rectangle.set_fill(true);
 
   g.add((mgui_object*)&rectangle);
-  g.display();
+  g.update_lcd();
 
   // debug_print(g.lcd()); // OK
 };
@@ -186,7 +282,7 @@ TEST_P(DrawCircleTest, On) {
 
     g.add((mgui_object *)&circle);
 
-    g.display();
+    g.update_lcd();
     // debug_print(g.lcd()); // OK
 };
 
@@ -204,7 +300,7 @@ TEST_P(DrawCircleTest, Fill) {
 
     g.add((mgui_object *)&circle);
 
-    g.display();
+    g.update_lcd();
     // debug_print(g.lcd()); // OK
 };
 
@@ -237,7 +333,7 @@ TEST_P(DrawRectangleTest, On) {
     rectangle.set_fill(fill);
 
     g.add((mgui_object*)&rectangle);
-    g.display();
+    g.update_lcd();
     // debug_print(g.lcd()); // OK
 };
 
@@ -274,7 +370,7 @@ TEST_P(DrawTriangleTest, On) {
     triangle.set_invert(invert);
 
     g.add((mgui_object*)&triangle);
-    g.display();
+    g.update_lcd();
     //debug_print(g.lcd()); // OK
 };
 
@@ -298,15 +394,14 @@ TEST_P(DrawTextTest, On) {
     std::string textdata = std::get<2>(GetParam());
 
     font_16x8 prop;
-    mgui_text text;
+    mgui_text text(&prop);
 
     text.set_x(x0);
     text.set_y(y0);
-    text.set_font(&prop);
     text.set_text(textdata.c_str());
 
     g.add((mgui_object *)&text);
-    g.display();
+    g.update_lcd();
     // debug_print(g.lcd()); // OK
 };
 
@@ -322,10 +417,6 @@ INSTANTIATE_TEST_SUITE_P(
 class ButtonTest :
     public testing::TestWithParam<std::tuple<int, int, std::string>> {};
 
-static bool onFunc() {
-    return true;
-};
-
 TEST_P(ButtonTest, On) {
     mgui g(WIDTH, HEIGHT);
     int x0 = std::get<0>(GetParam());
@@ -333,18 +424,15 @@ TEST_P(ButtonTest, On) {
     std::string textdata = std::get<2>(GetParam());
 
     font_16x8 prop;
+    mgui_text text(&prop, textdata.c_str());
     mgui_button button(x0, y0);
-    button.set_text(textdata.c_str(), &prop, 1, 2);
+    button.set_text(&text, 1, 2);
     button.set_radius(2);
-    button.set_on_press(&onFunc);
+    button.set_on_press(true);
     
     g.add((mgui_object*)&button);
-    g.display();
-    // debug_print(g.lcd()); // OK
-};
-
-static bool offFunc() {
-    return false;
+    g.update_lcd();
+    //debug_print(g.lcd()); // OK
 };
 
 TEST_P(ButtonTest, Off) {
@@ -354,14 +442,15 @@ TEST_P(ButtonTest, Off) {
     std::string textdata = std::get<2>(GetParam());
 
     font_16x8 prop;
+    mgui_text text(&prop, textdata.c_str());
     mgui_button button(x0, y0);
-    button.set_text(textdata.c_str(), &prop, 1, 2);
+    button.set_text(&text, 1, 2);
     button.set_radius(2);
-    button.set_on_press(&offFunc);
+    button.set_on_press(false);
 
     g.add((mgui_object*)&button);
-    g.display();
-    // debug_print(g.lcd()); // OK
+    g.update_lcd();
+    //debug_print(g.lcd()); // OK
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -374,6 +463,57 @@ INSTANTIATE_TEST_SUITE_P(
     )
 );
 
+TEST(ButtonTest_NoText, On) {
+    mgui g(WIDTH, HEIGHT);
+
+    mgui_button button(40, 15);
+    button.set_height(20);
+    button.set_width(30);
+    button.set_on_press(true);
+
+    g.add((mgui_object*)&button);
+    g.update_lcd();
+    // debug_print(g.lcd()); // OK
+};
+
+TEST(ButtonTest_NoText, Off) {
+    mgui g(WIDTH, HEIGHT);
+
+    mgui_button button(40, 15);
+    button.set_height(20);
+    button.set_width(30);
+    button.set_on_press(false);
+
+    g.add((mgui_object*)&button);
+    g.update_lcd();
+    // debug_print(g.lcd()); // OK
+};
+
+TEST(ButtonTest_NoText, Multi_On) {
+    mgui g(WIDTH, HEIGHT);
+
+    mgui_button button(10, 10);
+    button.set_height(10);
+    button.set_width(10);
+    button.set_on_press(true);
+    g.add((mgui_object*)&button);
+
+    mgui_button button2(20, 20);
+    button2.set_height(10);
+    button2.set_width(10);
+    button2.set_on_press(true);
+    g.add((mgui_object*)&button2);
+
+    mgui_button button3(30, 30);
+    button3.set_height(10);
+    button3.set_width(10);
+    button3.set_on_press(true);
+    g.add((mgui_object*)&button3);
+
+    g.update_lcd();
+    debug_print(g.lcd()); // OK
+};
+
 class MenuItemTest :
     public testing::TestWithParam<std::tuple<int, int, std::string>> {};
 
@@ -384,20 +524,22 @@ TEST_P(MenuItemTest, Selected) {
     std::string textdata = std::get<2>(GetParam());
 
     font_16x8 prop;
+    mgui_text text(&prop, textdata.c_str());
     mgui_menu_item menu_item(x0, y0, WIDTH, 16);
-    menu_item.set_text(textdata.c_str(), &prop, 1, 2);
+    menu_item.set_text(&text, 1, 2);
     menu_item.set_radius(2);
-    menu_item.set_selected(true);
+    menu_item.set_on_selected(true);
 
+    mgui_text text2(&prop, textdata.c_str());
     mgui_menu_item menu_item2(x0, y0 + 31, WIDTH, 16);
-    menu_item2.set_text(textdata.c_str(), &prop, 1, 2);
+    menu_item2.set_text(&text2, 1, 2);
     menu_item2.set_radius(2);
-    menu_item2.set_selected(false);
+    menu_item2.set_on_selected(false);
 
     g.add((mgui_object*)&menu_item);
     g.add((mgui_object*)&menu_item2);
-    g.display();
-    debug_print(g.lcd()); // OK
+    g.update_lcd();
+    // debug_print(g.lcd()); // OK
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -410,3 +552,175 @@ INSTANTIATE_TEST_SUITE_P(
         std::tuple<int, int, std::string>{ 0, 0, "x >" }
     )
 );
+
+TEST(UiGroupTest, FourItem){
+    mgui g(WIDTH, HEIGHT);
+    mgui_button button(10, 10);
+    button.set_height(10);
+    button.set_width(10);
+
+    mgui_button button2(20, 20);
+    button2.set_height(10);
+    button2.set_width(10);
+
+    mgui_button button3(30, 30);
+    button3.set_height(10);
+    button3.set_width(10);
+
+    mgui_button button4(40, 40);
+    button4.set_height(10);
+    button4.set_width(10);
+
+    mgui_ui_group group;
+    group.add(&button);
+    group.add(&button2);
+    group.add(&button3);
+    group.add(&button4);
+
+    g.add((mgui_object*)&group);
+    g.update_lcd();
+    // debug_print(g.lcd()); // OK
+}
+
+TEST(MenuTest, Nested) {
+    mgui g(WIDTH, HEIGHT);
+
+    mgui_menu_item item;
+
+    mgui_menu_item item2;
+    mgui_menu item2_menu;
+    mgui_menu_item item2_item;
+    item2_menu.add(&item2_item);
+    item2.set_menu(item2_menu.get_property());
+
+    mgui_menu_item item3;
+    mgui_menu_item item4;
+    mgui_menu_item item5;
+
+    mgui_menu menu;
+    menu.add(&item);
+    menu.add(&item2);
+    menu.add(&item3);
+    menu.add(&item4);
+    menu.add(&item5);
+
+    g.add((mgui_object*)&menu);
+    g.update_lcd();
+    // debug_print(g.lcd()); // OK
+}
+
+TEST(MenuTest, AddressMove) {
+    mgui g(WIDTH, HEIGHT);
+
+    mgui_menu_item item;
+
+    mgui_menu_item item2;
+    mgui_menu item2_menu;
+    mgui_menu_item item2_item;
+    item2_menu.add(&item2_item);
+    item2.set_menu(item2_menu.get_property());
+
+    mgui_menu_item item3;
+    mgui_menu_item item4;
+    mgui_menu_item item5;
+
+    mgui_menu menu;
+    menu.add(&item);
+    menu.add(&item2);
+    menu.add(&item3);
+    menu.add(&item4);
+    menu.add(&item5);   
+
+    g.add((mgui_object*)&menu);
+    g.update_lcd();
+
+    // select item2
+    menu.set_selected_index(1);
+    EXPECT_EQ(menu.selected_index(), 1);
+    
+    // move current menu
+    menu.set_on_enter(true);
+    EXPECT_EQ(menu.selected_index(), 0);
+    
+    // revert menu
+    menu.set_on_return(true);
+    EXPECT_EQ(menu.selected_index(), 1);
+}
+
+/**
+ * @brief
+ * menu
+ * + item_menu
+ * ++ item_menu2
+ *  ++ item_menu3
+ *   ++ item_menu4
+ *    ++ item_menu5
+ *     ++ item5
+ */
+TEST(MenuTest, MenuStack) {
+    mgui g(WIDTH, HEIGHT);
+
+    mgui_menu_item item(1);
+    mgui_menu_item item2(2);
+    mgui_menu_item item3(3);
+    mgui_menu_item item4(4);
+    mgui_menu_item item5(5);
+
+    mgui_menu item_menu2;
+    mgui_menu item_menu3;
+    mgui_menu item_menu4;
+    mgui_menu item_menu5;
+    
+    item_menu5.add(&item5);
+
+    item4.set_menu(item_menu5.get_property());
+    item_menu4.add(&item4);
+
+    item3.set_menu(item_menu4.get_property());
+    item_menu3.add(&item3);
+    
+    item2.set_menu(item_menu3.get_property());
+    item_menu2.add(&item2);
+
+    item.set_menu(item_menu2.get_property());  
+
+    mgui_menu menu;
+    menu.add(&item);
+
+    g.add((mgui_object*)&menu);
+    g.update_lcd();
+
+    EXPECT_EQ(menu.get_selected_item()->x(), 1);
+
+    // enter menu
+    menu.set_on_enter(true);
+    EXPECT_EQ(menu.get_selected_item()->x(), 2);
+
+    // enter menu
+    menu.set_on_enter(true);
+    EXPECT_EQ(menu.get_selected_item()->x(), 3);
+
+    // enter menu
+    menu.set_on_enter(true);
+    EXPECT_EQ(menu.get_selected_item()->x(), 4);
+
+    // enter menu
+    menu.set_on_enter(true);
+    EXPECT_EQ(menu.get_selected_item()->x(), 5);
+
+    // revert menu
+    menu.set_on_return(true);
+    EXPECT_EQ(menu.get_selected_item()->x(), 4);
+
+    // revert menu
+    menu.set_on_return(true);
+    EXPECT_EQ(menu.get_selected_item()->x(), 3);
+
+    // revert menu
+    menu.set_on_return(true);
+    EXPECT_EQ(menu.get_selected_item()->x(), 2);
+
+    // revert menu
+    menu.set_on_return(true);
+    EXPECT_EQ(menu.get_selected_item()->x(), 1);
+}
