@@ -517,7 +517,7 @@ TEST(ButtonTest_NoText, Multi_On) {
     g.add((mgui_object*)&button3);
 
     g.update_lcd();
-    debug_print(g.lcd()); // OK
+    //debug_print(g.lcd()); // OK
 };
 
 class MenuItemTest :
