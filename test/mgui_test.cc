@@ -262,7 +262,8 @@ INSTANTIATE_TEST_SUITE_P(
   DrawRectangleRoundedTest,
   testing::Values(
     P_A5{2, 2, 12, 12, 2},
-    P_A5{0, 0, 31, 31, 8}
+    P_A5{0, 0, 31, 31, 8},
+    P_A5{0, 48, 127, 63, 2}
   )
 );
 
@@ -410,7 +411,12 @@ INSTANTIATE_TEST_SUITE_P(
     DrawTextTest,
     testing::Values(
         std::tuple<int, int, std::string>{ 0, 0, "Hello" },
-        std::tuple<int, int, std::string>{ 10, 20, "World" }
+        std::tuple<int, int, std::string>{ 10, 20, "World" },
+        std::tuple<int, int, std::string>{ 1, 48, "World" },
+        // Height is greater than screen_height 
+        std::tuple<int, int, std::string>{ 1, 49, "x >" },
+        // Width is greater than screen_width
+        std::tuple<int, int, std::string>{ 1, 49, "123456789abcdef" }
     )
 );
 
@@ -519,25 +525,19 @@ class MenuItemTest :
 
 TEST_P(MenuItemTest, Selected) {
     mgui g(WIDTH, HEIGHT);
-    int x0 = std::get<0>(GetParam());
-    int y0 = std::get<1>(GetParam());
+    int index = std::get<0>(GetParam());
+    int count = std::get<1>(GetParam());
     std::string textdata = std::get<2>(GetParam());
 
     font_16x8 prop;
     mgui_text text(&prop, textdata.c_str());
-    mgui_menu_item menu_item(x0, y0, WIDTH, 16);
+    mgui_menu_item menu_item;
+    menu_item._set_draw_position(index, count, WIDTH, HEIGHT);
     menu_item.set_text(&text, 1, 2);
     menu_item.set_radius(2);
     menu_item.set_on_selected(true);
 
-    mgui_text text2(&prop, textdata.c_str());
-    mgui_menu_item menu_item2(x0, y0 + 31, WIDTH, 16);
-    menu_item2.set_text(&text2, 1, 2);
-    menu_item2.set_radius(2);
-    menu_item2.set_on_selected(false);
-
     g.add((mgui_object*)&menu_item);
-    g.add((mgui_object*)&menu_item2);
     g.update_lcd();
     // debug_print(g.lcd()); // OK
 };
@@ -546,10 +546,10 @@ INSTANTIATE_TEST_SUITE_P(
     Selected,
     MenuItemTest,
     testing::Values(
-        std::tuple<int, int, std::string>{ 0, 0, "Hello" },
-        std::tuple<int, int, std::string>{ 0, 0, "012345678" },
-        std::tuple<int, int, std::string>{ 0, 0, "W" },
-        std::tuple<int, int, std::string>{ 0, 0, "x >" }
+        std::tuple<int, int, std::string>{ 0, 4, "Hello" },
+        std::tuple<int, int, std::string>{ 1, 4, "012345678" },
+        std::tuple<int, int, std::string>{ 2, 4, "W" },
+        std::tuple<int, int, std::string>{ 3, 4, "x >" }
     )
 );
 
@@ -588,7 +588,7 @@ TEST(MenuTest, Nested) {
     mgui_menu_item item;
 
     mgui_menu_item item2;
-    mgui_menu item2_menu;
+    mgui_menu item2_menu(WIDTH, HEIGHT);
     mgui_menu_item item2_item;
     item2_menu.add(&item2_item);
     item2.set_menu(item2_menu.get_property());
@@ -597,7 +597,7 @@ TEST(MenuTest, Nested) {
     mgui_menu_item item4;
     mgui_menu_item item5;
 
-    mgui_menu menu;
+    mgui_menu menu(WIDTH, HEIGHT);
     menu.add(&item);
     menu.add(&item2);
     menu.add(&item3);
@@ -615,7 +615,7 @@ TEST(MenuTest, AddressMove) {
     mgui_menu_item item;
 
     mgui_menu_item item2;
-    mgui_menu item2_menu;
+    mgui_menu item2_menu(WIDTH, HEIGHT);
     mgui_menu_item item2_item;
     item2_menu.add(&item2_item);
     item2.set_menu(item2_menu.get_property());
@@ -624,7 +624,7 @@ TEST(MenuTest, AddressMove) {
     mgui_menu_item item4;
     mgui_menu_item item5;
 
-    mgui_menu menu;
+    mgui_menu menu(WIDTH, HEIGHT);
     menu.add(&item);
     menu.add(&item2);
     menu.add(&item3);
@@ -660,16 +660,16 @@ TEST(MenuTest, AddressMove) {
 TEST(MenuTest, MenuStack) {
     mgui g(WIDTH, HEIGHT);
 
-    mgui_menu_item item(1);
-    mgui_menu_item item2(2);
-    mgui_menu_item item3(3);
-    mgui_menu_item item4(4);
-    mgui_menu_item item5(5);
+    mgui_menu_item item;
+    mgui_menu_item item2;
+    mgui_menu_item item3;
+    mgui_menu_item item4;
+    mgui_menu_item item5;
 
-    mgui_menu item_menu2;
-    mgui_menu item_menu3;
-    mgui_menu item_menu4;
-    mgui_menu item_menu5;
+    mgui_menu item_menu2(WIDTH, HEIGHT);
+    mgui_menu item_menu3(WIDTH, HEIGHT);
+    mgui_menu item_menu4(WIDTH, HEIGHT);
+    mgui_menu item_menu5(WIDTH, HEIGHT);
     
     item_menu5.add(&item5);
 
@@ -684,43 +684,43 @@ TEST(MenuTest, MenuStack) {
 
     item.set_menu(item_menu2.get_property());  
 
-    mgui_menu menu;
+    mgui_menu menu(WIDTH, HEIGHT);
     menu.add(&item);
 
     g.add((mgui_object*)&menu);
     g.update_lcd();
 
-    EXPECT_EQ(menu.get_selected_item()->x(), 1);
+    EXPECT_EQ(menu.get_selected_item(), &item);
 
     // enter menu
     menu.set_on_enter(true);
-    EXPECT_EQ(menu.get_selected_item()->x(), 2);
+    EXPECT_EQ(menu.get_selected_item(), &item2);
 
     // enter menu
     menu.set_on_enter(true);
-    EXPECT_EQ(menu.get_selected_item()->x(), 3);
+    EXPECT_EQ(menu.get_selected_item(), &item3);
 
     // enter menu
     menu.set_on_enter(true);
-    EXPECT_EQ(menu.get_selected_item()->x(), 4);
+    EXPECT_EQ(menu.get_selected_item(), &item4);
 
     // enter menu
     menu.set_on_enter(true);
-    EXPECT_EQ(menu.get_selected_item()->x(), 5);
+    EXPECT_EQ(menu.get_selected_item(), &item5);
 
     // revert menu
     menu.set_on_return(true);
-    EXPECT_EQ(menu.get_selected_item()->x(), 4);
+    EXPECT_EQ(menu.get_selected_item(), &item4);
 
     // revert menu
     menu.set_on_return(true);
-    EXPECT_EQ(menu.get_selected_item()->x(), 3);
+    EXPECT_EQ(menu.get_selected_item(), &item3);
 
     // revert menu
     menu.set_on_return(true);
-    EXPECT_EQ(menu.get_selected_item()->x(), 2);
+    EXPECT_EQ(menu.get_selected_item(), &item2);
 
     // revert menu
     menu.set_on_return(true);
-    EXPECT_EQ(menu.get_selected_item()->x(), 1);
+    EXPECT_EQ(menu.get_selected_item(), &item);
 }

@@ -34,6 +34,63 @@ enum mgui_object_type {
 };
 
 /**
+ * @brief
+ * This class is a common class that manages font resources (buffers)
+ * with fixed width and height.
+ * When using this class, define a class that inherits from this class
+ * and set the value of each attribute.
+ */
+class mgui_font {
+public:
+
+    /**
+     * @brief Construct a new font property object
+     *
+     * @param w Font width to be set for the resource
+     * @param h Font height to be set for the resource
+     * @param resource Array of font data with specified width and height
+     */
+    explicit mgui_font(const uint16_t w, const uint16_t h, const uint8_t* resource) {
+        font_width_ = w;
+        font_height_ = h;
+        resource_ = resource;
+    }
+    virtual ~mgui_font() {}
+
+    /**
+     * @brief It returns font width
+     * @return Font width
+     */
+    inline uint16_t font_width() const { return font_width_; }
+
+    /**
+     * @brief It returns font height
+     * @return Font height
+     */
+    inline uint16_t font_height() const { return font_height_; }
+
+    /**
+     * @brief It returns the configured resource
+     * @return configured resource pointer
+     */
+    inline const uint8_t* resource() const { return resource_; }
+
+    /**
+     * @brief
+     * Function to retrieve the first array position of the string resource corresponding to the set character
+     * @param c Character to search
+     * @return
+     * Position of the first array of font resources corresponding to the character to be searched for.
+     */
+    virtual int search(const char* c) = 0;
+
+private:
+    uint16_t font_width_;
+    uint16_t font_height_;
+    const uint8_t* resource_;
+};
+
+/**
  * @brief 
  * Set a pixel, line, or shape at an arbitrary position in the preallocated lcd buffer array
  */
@@ -46,10 +103,10 @@ public:
      * @param width Target LCD width
      * @param height Target LCD height
      */
-    explicit mgui_draw(const uint8_t width, const uint8_t height, uint8_t *buffer){
-        lcd_width = width;
-        lcd_height = height;
-        lcd_buffer = buffer;
+    explicit mgui_draw(const uint16_t width, const uint16_t height, uint8_t *buffer){
+        lcd_width_ = width;
+        lcd_height_ = height;
+        lcd_buffer_ = buffer;
     }
 
     /**
@@ -104,10 +161,10 @@ public:
         }
     }
 
-    void draw_rectangle_rounded(int x0, int y0, int x1, int y1, int r, bool fill = false){
-
+    void draw_rectangle_rounded(int x0, int y0, int x1, int y1, int r, bool fill = false, bool on = true){
+        
         if(fill){
-            draw_rectangle_rounded_fill(x0, y0, x1, y1, r);
+            draw_rectangle_rounded_fill(x0, y0, x1, y1, r, on);
             return;
         }
 
@@ -123,20 +180,20 @@ public:
         while (x >= y)
         {
             // 1
-            draw_pixel(px1 + x, py0 - y, true);
-            draw_pixel(px1 + y, py0 - x, true);
+            draw_pixel(px1 + x, py0 - y, on);
+            draw_pixel(px1 + y, py0 - x, on);
             
             // 2
-            draw_pixel(px1 + x, py1 + y, true);
-            draw_pixel(px1 + y, py1 + x, true);
+            draw_pixel(px1 + x, py1 + y, on);
+            draw_pixel(px1 + y, py1 + x, on);
             
             // 3
-            draw_pixel(px0 - x, py1 + y, true);
-            draw_pixel(px0 - y, py1 + x, true);
+            draw_pixel(px0 - x, py1 + y, on);
+            draw_pixel(px0 - y, py1 + x, on);
 
             // 4
-            draw_pixel(px0 - x, py0 - y, true);
-            draw_pixel(px0 - y, py0 - x, true);
+            draw_pixel(px0 - x, py0 - y, on);
+            draw_pixel(px0 - y, py0 - x, on);
             if (f >= 0)
             {
                 x--;
@@ -147,19 +204,19 @@ public:
         }
 
         for (int x = px0; x <=px1 ; x++) {
-            draw_pixel(x, y0, true);
-            draw_pixel(x, y1, true);
+            draw_pixel(x, y0, on);
+            draw_pixel(x, y1, on);
         }
 
         for(int y = py0; y <= py1; y++) {
-            draw_pixel(x0, y, true);
-            draw_pixel(x1, y, true);
+            draw_pixel(x0, y, on);
+            draw_pixel(x1, y, on);
         }
     }
 
-    void draw_rectangle(int x0, int y0, int x1, int y1, bool fill = false){
+    void draw_rectangle(int x0, int y0, int x1, int y1, bool fill = false, bool on = true){
         if(fill){
-            draw_rectangle_fill(x0, y0, x1, y1);
+            draw_rectangle_fill(x0, y0, x1, y1, on);
             return;
         }
 
@@ -232,14 +289,58 @@ public:
      * if false, it is set to 0
      */
     void draw_pixel(int x, int y, bool on){
-        // Calculate the byte index.
-        int byte_idx = (y >> 3) * lcd_width + x;
-        uint8_t bit_idx = (1 << (y % 8));
+        if (x < lcd_width_ && y < lcd_height_) {
+            // Calculate the byte index.
+            int byte_idx = (y >> 3) * lcd_width_ + x;
+            uint8_t bit_idx = (1 << (y % 8));
 
-        // Set or clear the bit at the specified index.
-        lcd_buffer[byte_idx] 
-            = on ? (lcd_buffer[byte_idx] | bit_idx)
-                     : (lcd_buffer[byte_idx] & ~bit_idx);
+            // Set or clear the bit at the specified index.
+            lcd_buffer_[byte_idx]
+                = on ? (lcd_buffer_[byte_idx] | bit_idx)
+                        : (lcd_buffer_[byte_idx] & ~bit_idx);
+        }
+    }
+
+    /**
+     * @brief 
+     * Draw an arbitrary character from mgui_font resource
+     * 
+     * @param font 
+     * @param x x position in the upper left corner of the text display
+     * @param y y position in the upper left corner of the text display
+     * @param index  Starting position of font resource loading (returned value of mgui_font::search)
+     * @param invert If true, invert buffer color of font resource
+     * @param font_start_x Starting pixel position x-coordinate of font resource setting to be displayed
+     * @param font_start_y Starting pixel position y-coordinate of font resource setting to be displayed
+     * @param font_end_x 
+     * End pixel position x-coordinate of the font resource setting to be displayed.
+     * (If 0, the size of the font resource setting is applied.)
+     * @param font_end_y
+     * End pixel position y-coordinate of the font resource setting to be displayed. 
+     * (If 0, the size of the font resource setting is applied.)
+     */
+    inline void draw_char(const mgui_font *font,
+                          const int& x,
+                          const int& y,
+                          const int& index,
+                          bool invert = false,
+                          const int& font_start_x = 0,
+                          const int& font_start_y = 0,
+                          const int& font_end_x = 0,
+                          const int& font_end_y = 0) {
+        
+        int x_end = ((font_end_x == 0)? font->font_width() : font_end_x);
+        int y_end = ((font_end_y == 0)? font->font_height() : font_end_y);
+
+        for (int y1 = font_start_y; y1 < y_end; y1++) {
+            for (int x1 = font_start_x; x1 < x_end; x1++) {
+                int pos = index + y1 / 8 * font->font_width() + x1;
+                bool checkbit = check_bit_on(x1, y1, font->resource()[pos]);
+                if (checkbit) {
+                    draw_pixel(x + x1, y + y1, (invert) ? !checkbit : checkbit);
+                }
+            }
+        }
     }
 
     /**
@@ -247,7 +348,7 @@ public:
      * 
      * @return uint8_t* 
      */
-    uint8_t * lcd() { return lcd_buffer; }
+    uint8_t * lcd() { return lcd_buffer_; }
 
 private:
     // inline int abs(int x) { return x > 0 ? x : -x; }
@@ -297,7 +398,7 @@ private:
      * @param y1 y position of bottom right
      * @param r rounded corner radius
      */
-    inline void draw_rectangle_rounded_fill(int x0, int y0, int x1, int y1, int r){
+    inline void draw_rectangle_rounded_fill(int x0, int y0, int x1, int y1, int r, bool on){
         int x = r;
         int y = 0;
         int f = -(r << 1) + 3;
@@ -311,20 +412,20 @@ private:
         {
             for(int xd = 0; xd <= x; xd++){
                 // 1
-                draw_pixel(px1 + xd, py0 - y, true);
-                draw_pixel(px1 + y, py0 - xd, true);
+                draw_pixel(px1 + xd, py0 - y, on);
+                draw_pixel(px1 + y, py0 - xd, on);
                 
                 // 2
-                draw_pixel(px1 + xd, py1 + y, true);
-                draw_pixel(px1 + y, py1 + xd, true);
+                draw_pixel(px1 + xd, py1 + y, on);
+                draw_pixel(px1 + y, py1 + xd, on);
                 
                 // 3
-                draw_pixel(px0 - xd, py1 + y, true);
-                draw_pixel(px0 - y, py1 + xd, true);
+                draw_pixel(px0 - xd, py1 + y, on);
+                draw_pixel(px0 - y, py1 + xd, on);
 
                 // 4
-                draw_pixel(px0 - xd, py0 - y, true);
-                draw_pixel(px0 - y, py0 - xd, true);
+                draw_pixel(px0 - xd, py0 - y, on);
+                draw_pixel(px0 - y, py0 - xd, on);
             }
 
             if (f >= 0)
@@ -339,12 +440,12 @@ private:
         // fill side
         for(int dx = 0; dx <= r; dx++){
             for(int dy = py0; dy <= py1; dy++){
-                draw_pixel(x0 + dx, dy, true);
-                draw_pixel(px1 + dx, dy, true);
+                draw_pixel(x0 + dx, dy, on);
+                draw_pixel(px1 + dx, dy, on);
             }
         }
 
-        draw_rectangle_fill(px0, y0, px1, y1);
+        draw_rectangle_fill(px0, y0, px1, y1, on);
     }
 
     /**
@@ -354,23 +455,45 @@ private:
      * @param y0 y position at upper left
      * @param x1 x position at bottom right
      * @param y1 y position at bottom right
+     * @param on if true, set 1; if false, set 0
      */
-    inline void draw_rectangle_fill(int x0, int y0, int x1, int y1){
+    inline void draw_rectangle_fill(int x0, int y0, int x1, int y1, bool on){
         for(int x = x0; x <= x1; x++){
             for(int y = y0; y <= y1; y++){
-                draw_pixel(x, y, true);
+                draw_pixel(x, y, on);
             }
         }
     }
 
-    uint8_t *lcd_buffer;
-    int lcd_width;
-    int lcd_height;
+    inline bool check_bit_on(int x, int y, uint8_t value) {
+        uint8_t bit_idx = (1 << (y % 8));
+        bool on = (value & bit_idx) & bit_idx;
+        return on;
+    }
+
+    uint8_t *lcd_buffer_;
+    int lcd_width_;
+    int lcd_height_;
 };
 
+/**
+ * @brief 
+ * Common objects to reflect the set state
+ */
 class mgui_object {
 public:
+    /**
+     * @brief 
+     * Specify a unique object name in the inherited class
+     * @return Name of object registered in enum
+     */
     virtual mgui_object_type type() const = 0;
+
+    /**
+     * @brief 
+     * Set up drawing process for objects in inherited classes
+     * @param draw Objects that provide a method for drawing
+     */
     virtual void update(mgui_draw* draw) = 0;
 };
 
@@ -460,6 +583,14 @@ class mgui_list {
     return node->obj;
   }
 
+  mgui_list_node<T>* get_node(const int index) {
+      mgui_list_node<T>* node = head;
+      for (int i = 0; i < index; i++) {
+          node = node->next;
+      }
+      return node;
+  }
+
   void remove(const T &item) {
     mgui_list_node<T>* current_node = head;
     mgui_list_node<T>* prev_node = nullptr;
@@ -516,7 +647,6 @@ class mgui_list {
   int counter;
 };
 
-
 template <typename T>
 class mgui_stack {
 public:
@@ -559,8 +689,6 @@ public:
      * @param height Target LCD height
      */
     explicit mgui(const uint8_t width, const uint8_t height) {
-        lcd_width = width;
-        lcd_height = height;
         buffer_size = width * (height >> 3);
         lcd_buffer = new uint8_t[buffer_size]();
         memset(lcd_buffer, 0, buffer_size);
@@ -605,53 +733,7 @@ private:
     mgui_draw* draw;
     mgui_list<mgui_object*>* list;
     uint8_t* lcd_buffer;
-    int lcd_width;
-    int lcd_height;
     int buffer_size;
-};
-
-class mgui_base_property {
-public:
-    /**
-     * @brief Construct a new mgui base property object
-     * The arguments of this constructor default to 0,
-     * since it is not necessary to set the entire argument
-     * on the part of the inherited class.
-     * 
-     * @param x LCD X position
-     * @param y LCD Y position
-     * @param width Width of objects that inherit this property
-     * @param height Height of objects that inherit this property
-     */
-    mgui_base_property(uint16_t x = 0, uint16_t y = 0, uint16_t width = 0, uint16_t height = 0) {
-        x_ = x;
-        y_ = y;
-        width_ = width;
-        height_ = height;
-    };
-
-    bool operator==(const mgui_base_property& other) const
-    {
-        return width_ == other.width_ && height_ == other.height_ && x_ == other.x_ && y_ == other.y_;
-    }
-
-    inline uint16_t width() const { return width_; }
-    inline void set_width(uint16_t width) { width_ = width; }
-
-    inline uint16_t height() const { return height_; }
-    inline void set_height(uint16_t height) { height_ = height; }
-
-    inline uint16_t x() const { return x_; }
-    inline void set_x(uint16_t x) { x_ = x; }
-
-    inline uint16_t y() const { return y_; }
-    inline void set_y(uint16_t y) { y_ = y; }
-
-private:
-    uint16_t width_;
-    uint16_t height_;
-    uint16_t x_;
-    uint16_t y_;
 };
 
 class mgui_padding_property {
@@ -661,11 +743,6 @@ public:
         left_ = 0;
         up_ = 0;
         right_ = 0;
-    }
-
-    mgui_padding_property(const uint16_t& left_, const uint16_t& up_, const uint16_t& right_, const uint16_t& down_)
-        : left_(left_), up_(up_), right_(right_), down_(down_)
-    {
     }
 
     bool operator==(const mgui_padding_property& other) const
@@ -690,32 +767,73 @@ private:
     uint16_t up_;
     uint16_t right_;
     uint16_t down_;
-
 };
 
-class mgui_font_property {
+class mgui_text_property {
 public:
-    mgui_font_property() {
-        font_width_ = 0;
-        font_height_ = 0;
-        resource_ = nullptr;
+    /**
+     * @brief Construct a new mgui text property
+     *
+     * @param font The inherited class of mgui_font_property
+     * @param text Text to display
+     */
+    explicit mgui_text_property(mgui_font* font, const char* text = nullptr) {
+        font_ = font;
+        text_ = nullptr;
+        text_index_ = nullptr;
+        text_length = 0;
+
+        if (text) {
+            set_text(text);
+        }
     }
 
-    inline uint16_t font_width() const { return font_width_; }
-    inline void set_font_width(uint16_t font_width) { font_width_ = font_width; }
+    virtual ~mgui_text_property() {
+        clear();
+    }
 
-    inline uint16_t font_height() const { return font_height_; }
-    inline void set_font_height(uint16_t font_height) { font_height_ = font_height; }
+    inline char* get_text() const { return text_; }
+    inline void set_text(const char* text) {
+        clear();
+        text_length = strlen(text);
+        text_ = new char[text_length + 1];
+        text_index_ = new int[text_length];
+        memcpy(text_, text, text_length);
+        text_[text_length] = '\0';
 
-    inline uint8_t* resource() const { return resource_; }
-    inline void set_resource(uint8_t* resource) { resource_ = resource; }
-
-    virtual int search(const char *c) = 0;
+        for (int i = 0; i < text_length; i++) {
+            char c = *(text + i);
+            text_index_[i] = font_->search(&c);
+        }
+    }
+    inline int get_text_index(const int index) const { return text_index_[index]; }
+    inline int get_text_length() const { return text_length; }
+    inline mgui_font* get_font() const { return font_; }
 
 private:
-    uint16_t font_width_;
-    uint16_t font_height_;
-    uint8_t* resource_;
+    inline void clear() {
+        if (text_) {
+            delete[] text_index_;
+            delete[] text_;
+            text_index_ = nullptr;
+            text_ = nullptr;
+            text_length = 0;
+        }
+    }
+
+    inline int strlen(const char* str) {
+        int len = 0;
+        while (*str != '\0') {
+            len++;
+            str++;
+        }
+        return len;
+    }
+
+    mgui_font* font_;
+    char* text_;
+    int* text_index_;
+    int text_length;
 };
 
 /**
@@ -724,11 +842,15 @@ private:
  */
 class mgui_pixel : mgui_object {
 public:
-    mgui_pixel() {
-        x_ = 0;
-        y_ = 0;
-        on_ = 0;
-        invert_ = 0;
+    explicit mgui_pixel(
+        const uint16_t& x = 0,
+        const uint16_t& y = 0,
+        const bool& on = false,
+        const bool& invert = false) {
+        x_ = x;
+        y_ = y;
+        on_ = on;
+        invert_ = invert;
     }
     virtual ~mgui_pixel(){}
 
@@ -740,11 +862,11 @@ public:
     inline uint16_t y() const { return y_; }
     inline void set_y(uint16_t y) { y_ = y; }
 
-    inline uint8_t on() const { return on_; }
-    inline void set_on(uint8_t on) { on_ = on; }
+    inline bool on() const { return on_; }
+    inline void set_on(bool on) { on_ = on; }
 
-    inline uint8_t invert() const { return invert_; }
-    inline void set_invert(uint8_t invert) { invert_ = invert; }
+    inline bool invert() const { return invert_; }
+    inline void set_invert(bool invert) { invert_ = invert; }
 
     void update(mgui_draw* draw) {
         if(invert_) {
@@ -758,8 +880,8 @@ public:
 private:
     uint16_t x_;
     uint16_t y_;
-    uint8_t on_;
-    uint8_t invert_;
+    bool on_;
+    bool invert_;
 };
 
 /**
@@ -805,36 +927,61 @@ private:
  * @brief It draws rectangle.
  * 
  */
-class mgui_rectangle : public mgui_base_property, mgui_object {
+class mgui_rectangle : mgui_object {
 public:
     mgui_rectangle() {
+        x_ = 0;
+        y_ = 0;
+        width_ = 0;
+        height_ = 0;
         r_ = 0;
-        fill_ = 0;
+        fill_ = false;
+        invert_ = false;
     }
     virtual ~mgui_rectangle() {}
 
     mgui_object_type type() const { return mgui_object_type::Rectangle; }
 
-    inline uint16_t radius() const { return r_; }
-    inline void set_radius(uint16_t r) { r_ = r; }
-
-    inline uint8_t fill() const { return fill_; }
-    inline void set_fill(uint8_t fill) { fill_ = fill; }
-
     void update(mgui_draw* draw) {
 
-        if(r_ > 0){
+        if (r_ > 0) {
             draw->draw_rectangle_rounded(
-                x(), y(), x() + width() - 1, y() + height() - 1, r_, fill_);
+                x_, y_, x_ + width_ - 1, y_ + height_ - 1, r_, fill_, !invert_);
             return;
         }
 
-        draw->draw_rectangle(x(), y(), x() + width() - 1, y() + height() - 1, fill_);
+        draw->draw_rectangle(x_, y_, x_ + width_ - 1, y_ + height_ - 1, fill_, !invert_);
     }
 
+    inline uint16_t radius() const { return r_; }
+    inline void set_radius(uint16_t r) { r_ = r; }
+
+    inline bool fill() const { return fill_; }
+    inline void set_fill(bool fill) { fill_ = fill; }
+
+    inline uint16_t width() const { return width_; }
+    inline void set_width(uint16_t width) { width_ = width; }
+
+    inline uint16_t height() const { return height_; }
+    inline void set_height(uint16_t height) { height_ = height; }
+
+    inline uint16_t x() const { return x_; }
+    inline void set_x(uint16_t x) { x_ = x; }
+
+    inline uint16_t y() const { return y_; }
+    inline void set_y(uint16_t y) { y_ = y; }
+
+    inline bool invert() const { return invert_; }
+    inline void set_invert(bool invert) { invert_ = invert; }
+
 private:
+    uint16_t width_;
+    uint16_t height_;
+    uint16_t x_;
+    uint16_t y_;
     uint16_t r_;
-    uint8_t fill_;
+    bool fill_;
+    bool invert_;
 };
 
 /**
@@ -894,7 +1041,7 @@ private:
 /**
  * @brief It draws text.
  */
-class mgui_text : public mgui_base_property, mgui_object {
+class mgui_text : mgui_object {
 public:
     /**
      * @brief Construct a new mgui text object
@@ -904,100 +1051,78 @@ public:
      * @param x X position in the upper left corner where mgui_font_property resource is displayed
      * @param y Y position in the upper left corner where mgui_font_property resource is displayed
      */
-    mgui_text(mgui_font_property *font, const char* text = nullptr, uint16_t x = 0, uint16_t y = 0) {
-        font_ = font;
-        text_ = nullptr;
-        text_index_ = nullptr;
-        text_length = 0;
-
-        if(text) {
-            set_text(text);
-        }
+    explicit mgui_text(mgui_font *font, const char* text = nullptr, uint16_t x = 0, uint16_t y = 0) {
+        text_property_ = new mgui_text_property(font, text);
         set_x(x);
         set_y(y);
+        if (text) {
+            set_text(text);
+        }
         invert_ = false;
     }
 
     ~mgui_text() {
-        reset_text_();
+        delete text_property_;
     }
 
     mgui_object_type type() const { return mgui_object_type::Text; }
     
     void update(mgui_draw* draw) {
-        for(int i = 0; i < text_length; i++) {
-            int x0 = x() + font()->font_width() * i;
-            draw_char(draw, x0, y(), text_index_[i]);
+        for(int i = 0; i < text_property_->get_text_length(); i++) {
+            int x0 = x_ + font()->font_width() * i;
+            //draw_char(draw, x0, y(), text_property_->get_text_index(i));
+            draw->draw_char(font(), x0, y_, text_property_->get_text_index(i), invert_);
         }
     }
 
-    inline char* text() const { return text_; }
+    inline char* text() const { return text_property_->get_text(); }
     inline void set_text(const char* text) {
-        reset_text_();
-        text_length = strlen(text);
-        text_ = new char[text_length + 1];
-        text_index_ = new int[text_length];
-        memcpy(text_, text, text_length);
-        text_[text_length] = '\0';
-
-        for(int i = 0; i < text_length; i++){
-            char c = *(text + i);
-            text_index_[i] = font()->search(&c);
-        }
-
-        set_width(font()->font_width() * text_length);
-        set_height(font()->font_height());
+        text_property_->set_text(text);
+        width_ = font()->font_width() * text_property_->get_text_length();
+        height_ = font()->font_height();
     }
 
-    inline mgui_font_property* font() const { return font_; }
-    inline void set_font(mgui_font_property* font) { font_ = font; }
+    inline int text_length() { return text_property_->get_text_length(); }
 
-    inline uint8_t invert() const { return invert_; }
-    inline void set_invert(uint8_t invert) { invert_ = invert; }
+    inline uint16_t width() const { return width_; }
+    inline uint16_t height() const { return height_; }
+
+    inline uint16_t x() const { return x_; }
+    inline void set_x(uint16_t x) { x_ = x; }
+
+    inline uint16_t y() const { return y_; }
+    inline void set_y(uint16_t y) { y_ = y; }
+
+    inline mgui_font* font() const { return text_property_->get_font(); }
+
+    inline bool invert() const { return invert_; }
+    inline void set_invert(bool invert) { invert_ = invert; }
 
 private:
-    inline void draw_char(mgui_draw* draw, int x, int y, int index) {               
-        for(int y1 = 0; y1 < font()->font_height(); y1++) {
-            for(int x1 = 0; x1 < font()->font_width(); x1++) {
-                int pos = index + y1 / 8 * font()->font_width() + x1;
-                bool checkbit = check_bit_on(x1, y1, font()->resource()[pos]);
-                if (checkbit) {
-                    draw->draw_pixel(x + x1, y + y1, (invert_)? !checkbit : checkbit);
-                }
-            }
-        }
-    }
+    //inline void draw_char(mgui_draw* draw, int x, int y, int index) {               
+    //    for(int y1 = 0; y1 < font()->font_height(); y1++) {
+    //        for(int x1 = 0; x1 < font()->font_width(); x1++) {
+    //            int pos = index + y1 / 8 * font()->font_width() + x1;
+    //            bool checkbit = check_bit_on(x1, y1, font()->resource()[pos]);
+    //            if (checkbit) {
+    //                draw->draw_pixel(x + x1, y + y1, (invert_)? !checkbit : checkbit);
+    //            }
+    //        }
+    //    }
+    //}
 
-    bool check_bit_on(int x, int y, uint8_t value) {
-        uint8_t bit_idx = (1 << (7 - y % 8));
-        bool on = (value & bit_idx) & bit_idx;
-        return on;
-    }
+    //bool check_bit_on(int x, int y, uint8_t value) {
+    //    uint8_t bit_idx = (1 << (7 - y % 8));
+    //    bool on = (value & bit_idx) & bit_idx;
+    //    return on;
+    //}
 
-    inline void reset_text_() {
-        if (text_) {
-            delete[] text_index_;
-            delete[] text_;
-            text_index_ = nullptr;
-            text_ = nullptr;
-            text_length = 0;
-        }
-    }
-
-    inline int strlen(const char* str) {
-        int len = 0;
-        while (*str != '\0') {
-            len++;
-            str++;
-        }
-        return len;
-    }
-
-    mgui_font_property* font_;
-    uint8_t invert_;
-    char* text_;
-    int* text_index_;
-    int text_length;
+    uint16_t width_;
+    uint16_t height_;
+    uint16_t x_;
+    uint16_t y_;
+    bool invert_;
+    mgui_text_property *text_property_;
 };
 
 /**
@@ -1143,6 +1268,10 @@ class mgui_button : public mgui_core_ui {
  };
 
 /**
+ * forward declare
+ */
+class mgui_menu_item;
+/**
  * @brief 
  * Attribute information shared to create a hierarchical menu structure
  */
@@ -1155,23 +1284,25 @@ public:
 
     inline mgui_menu_property* get_property() { return this; }
 
-    mgui_list<mgui_core_ui*> menu_item_;
+    mgui_list<mgui_menu_item*> menu_item_;
     uint16_t selected_index_;
+};
+
+enum class mgui_menu_item_type {
+    None,
+    Check,
+    Menu
 };
 
 class mgui_menu_item : public mgui_core_ui {
 public:
-    explicit mgui_menu_item(uint16_t x = 0, uint16_t y = 0, uint16_t w = 0, uint16_t h = 0)
-        : mgui_core_ui() {
-        rect_.set_x(x);
-        rect_.set_y(y);
-        rect_.set_width(w);
-        rect_.set_height(h);
-        rect_.set_fill(true);
+    mgui_menu_item(): mgui_core_ui() {
         text_ = nullptr;
         text_rel_x_ = 0;
         text_rel_y_ = 0;
         child_menu_ = nullptr;
+        is_checked_ = false;
+        item_type_ = mgui_menu_item_type::None;
     }
     ~mgui_menu_item(){}
 
@@ -1188,47 +1319,120 @@ public:
             text_->update(draw);
         }
 
-        if(child_menu_) {
-            // draw triangle
+        switch (item_type_) {
+        case mgui_menu_item_type::Check:
+            draw_check_box(draw, is_filled);
+            break;
+        case mgui_menu_item_type::Menu:
+            draw_menu_guide(draw, is_filled);
+            break;
+        default:
+            break;
         }
     }
 
     inline uint16_t radius() const { return rect_.radius(); }
     inline void set_radius(uint16_t radius) { rect_.set_radius(radius); }
 
-    inline uint16_t width() const { return rect_.width(); }
-    inline void set_width(uint16_t width) { rect_.set_width(width); }
-    
-    inline uint16_t height() const { return rect_.height(); }
-    inline void set_height(uint16_t height) { rect_.set_height(height); }
-    
-    inline uint16_t x() const { return rect_.x(); }
-    inline void set_x(uint16_t x) { rect_.set_x(x); }
-    
-    inline uint16_t y() const { return rect_.y(); }
-    inline void set_y(uint16_t y) { rect_.set_y(y); }
+    /**
+     * @brief
+     * Calculate and set the menu display position based on the number of displays on
+     * the screen and the item setting index.
+     * 
+     * @remarks
+     * This function is automatically assigned by mgui_menu and is not used directly
+     * 
+     * @param index Setting display position in item
+     * @param item_count number of items on screen
+     * @param screen_width
+     * @param screen_height
+     */
+    inline void _set_draw_position(uint16_t index, uint16_t item_count, uint16_t screen_width, uint16_t screen_height) {
+        uint16_t h = screen_height / item_count;
+        rect_.set_x(0);
+        rect_.set_y(h * index);
+        rect_.set_width(screen_width);
+        rect_.set_height(h);
+
+        // check box
+        check_rect_outer.set_height(h - 2);
+        check_rect_outer.set_width(h - 2);
+        check_rect_outer.set_x(screen_width - h + 1);
+        check_rect_outer.set_y(h * index + 1);
+
+        check_rect_inner.set_height(h - 4);
+        check_rect_inner.set_width(h - 4);
+        check_rect_inner.set_x(screen_width - h + 3);
+        check_rect_inner.set_y(h * index + 3);
+        check_rect_inner.set_fill(true);
+
+        // menu
+        menu_arrow.set_x0(screen_width - h + 2);
+        menu_arrow.set_y0(h * index + 2);
+        menu_arrow.set_x1(screen_width - h + 2);
+        menu_arrow.set_y1(h * (index + 1) - 2);
+        menu_arrow.set_x2(screen_width - 2);
+        menu_arrow.set_y2(h * index + (h >> 1));
+
+        if (text_) {
+            update_text_property();
+            /*uint16_t text_width_end = text_->width() + text_rel_x_;
+            uint16_t text_height_end = rect_.y() + text_->font()->font_height() + text_rel_y_;*/
+        }
+    }
 
     inline mgui_text* text() const { return text_; }
     inline void set_text(mgui_text* text, uint16_t text_rel_x = 0, uint16_t text_rel_y = 0) {
         text_ = text;
-        text_->set_x(rect_.x());
-        text_->set_y(rect_.y());
         text_rel_x_ = text_rel_x;
         text_rel_y_ = text_rel_y;
-        update_property();
+        update_text_property();
     }
 
-    inline void set_menu(mgui_menu_property* menu) { child_menu_ = menu; }
+    inline void set_menu(mgui_menu_property* menu) { 
+        child_menu_ = menu;
+        item_type_ = mgui_menu_item_type::Menu;
+    }
     inline mgui_menu_property* menu() { return child_menu_; }
 
+    inline void set_checked(bool is_checked) { 
+        is_checked_ = is_checked;
+        item_type_ = mgui_menu_item_type::Check;
+    }
+    inline bool checked() const { return is_checked_; }
+
 private:
-    inline void update_property() {
-        text_->set_x(text_->x() + text_rel_x_);
-        text_->set_y(text_->y() + text_rel_y_);
+    inline void update_text_property() {
+        text_->set_x(text_rel_x_);
+        text_->set_y(rect_.y() + text_rel_y_);
     }
 
+    inline void draw_check_box(mgui_draw* draw, bool invert) {
+        check_rect_outer.set_invert(invert);
+        check_rect_outer.update(draw);
+        if (is_checked_) {
+            check_rect_inner.set_invert(invert);
+            check_rect_inner.update(draw);
+        }
+    }
+
+    inline void draw_menu_guide(mgui_draw* draw, bool invert) {
+        if (child_menu_) {
+            menu_arrow.set_invert(invert);
+            menu_arrow.update(draw);
+        }
+    }
+
+    bool is_checked_;
+    mgui_menu_item_type item_type_;
     mgui_menu_property* child_menu_;
     mgui_rectangle rect_;
+
+    mgui_rectangle check_rect_outer;
+    mgui_rectangle check_rect_inner;
+    
+    mgui_triangle menu_arrow;
+    
     mgui_text *text_;
     uint16_t text_rel_x_;
     uint16_t text_rel_y_;
@@ -1236,36 +1440,54 @@ private:
 
 class mgui_menu : mgui_object {
 public:
-    mgui_menu(){
+    mgui_menu(const uint16_t width, const uint16_t height, const uint16_t item_count = 4){
         moved_from_ = new mgui_stack<mgui_menu_property>();
+        window_width_ = width;
+        window_height_ = height;
+        item_first_node_ = nullptr;
+        item_count_ = item_count;
     }
     ~mgui_menu(){
         delete moved_from_;
     }
 
     mgui_object_type type() const { return mgui_object_type::Menu; }
-    void update(mgui_draw* draw) {
-        mgui_list_node<mgui_core_ui*>* node = p.menu_item_.first();
-        while (node != nullptr) {
+    void update(mgui_draw* draw) {       
+        mgui_list_node<mgui_menu_item*>* node = item_first_node_;
+        for (int i = 0; i < item_count_; i++) {
+            if (node == nullptr) {
+                break;
+            }
+            node->obj->_set_draw_position(i, item_count_, window_width_, window_height_);
             node->obj->update(draw);
             node = node->next;
         }
     }
 
-    inline void add(mgui_core_ui* item) {
+    inline void add(mgui_menu_item* item) {
         if (item->type() == mgui_object_type::MenuItem) {
             p.menu_item_.add(item);
         }
     }
 
-    inline void remove(mgui_core_ui* item) {
+    inline void remove(mgui_menu_item* item) {
         if (item->type() == mgui_object_type::MenuItem) {
             p.menu_item_.remove(item);
         }
     }
 
     inline uint16_t selected_index() const { return p.selected_index_; }
-    inline void set_selected_index(uint16_t index_) { p.selected_index_ = index_; }
+    inline void set_selected_index(uint16_t index_){
+        p.selected_index_ = index_;
+        int first = ((index_ - item_count_) > 0)? index_ - item_count_ : 0;
+
+        if (first < p.menu_item_.count()) {
+            item_first_node_ = p.menu_item_.get_node(first);
+        }
+        else {
+            item_first_node_ = nullptr;
+        }
+    }
 
     inline mgui_menu_property* get_property() { return p.get_property(); }
 
@@ -1343,7 +1565,20 @@ public:
         }
     }
 
+    inline uint16_t item_count() const { return item_count_; }
+    inline uint16_t set_item_count(uint16_t item_count) { item_count_ = item_count; }
+
+    inline uint16_t width() const { return window_width_; }
+    inline void set_width(uint16_t width) { window_width_ = width; }
+
+    inline uint16_t height() const { return window_height_; }
+    inline void set_height(uint16_t height) { window_height_ = height; }
+
 private:
+    mgui_list_node<mgui_menu_item*>* item_first_node_;
+    uint16_t item_count_;
+    uint16_t window_height_;
+    uint16_t window_width_;
     mgui_menu_property p;
     mgui_stack<mgui_menu_property> *moved_from_;
 };

@@ -12,3 +12,7 @@ _deps
 /out
 /.vs
 /.vscode
+/example/mgui-rp2040/.vs
+/example/mgui-rp2040/build
+/example/mgui-rp2040/out/build/x64-Debug
+/example/mgui-rp2040/.vscode

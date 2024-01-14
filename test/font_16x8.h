@@ -102,13 +102,9 @@ static uint8_t font[] = {
     0x00,0x03,0x02,0x01,0x00,0x01,0x02,0x00,0x80,0x00,0x00,0x00,0x80,0x80,0x00,0x00, // ~ 8x16
 };
 
-class font_16x8 : public mgui_font_property {
+class font_16x8 : public mgui_font {
 public:
-    font_16x8(): mgui_font_property() {
-        set_font_width(8);
-        set_font_height(16);
-        set_resource(font);
-    }
+    font_16x8(): mgui_font(8, 16, font){}
     virtual ~font_16x8() {}
 
     int search(const char *c){
