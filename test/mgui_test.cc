@@ -582,6 +582,23 @@ TEST(UiGroupTest, FourItem){
     // debug_print(g.lcd()); // OK
 }
 
+TEST(UiGroupTest, FourItem_2){
+    mgui g(WIDTH, HEIGHT);
+    mgui_button button(10, 10, 10, 10);
+    mgui_button button2(20, 20, 10, 10);
+    mgui_button button3(30, 30, 10, 10);
+    mgui_button button4(40, 40, 10, 10);
+    mgui_ui_group group;
+    group.add(&button);
+    group.add(&button2);
+    group.add(&button3);
+    group.add(&button4);
+
+    g.add((mgui_object *)&group);
+    g.update_lcd();
+    // debug_print(g.lcd()); // OK
+}
+
 TEST(MenuTest, Nested) {
     mgui g(WIDTH, HEIGHT);
 
