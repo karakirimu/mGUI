@@ -724,3 +724,43 @@ TEST(MenuTest, MenuStack) {
     menu.set_on_return(true);
     EXPECT_EQ(menu.get_selected_item(), &item);
 }
+
+TEST(MenuTest, Check_Menu){
+    mgui g(WIDTH, HEIGHT);
+
+    mgui_menu_item item;
+    mgui_menu_item item2;
+    item2.set_check(false);
+    mgui_menu_item item3;
+    mgui_menu_item item4;
+    mgui_menu_item item5;
+
+    mgui_menu menu(WIDTH, HEIGHT);
+    menu.add(&item);
+    menu.add(&item2);
+    menu.add(&item3);
+    menu.add(&item4);
+    menu.add(&item5);
+
+    g.add((mgui_object*)&menu);
+    g.update_lcd();
+
+    // select item2
+    menu.set_selected_index(1);
+    EXPECT_EQ(menu.selected_index(), 1);
+    EXPECT_EQ(item2.checked(), false);
+    g.update_lcd();
+
+    // check item2
+    menu.set_on_enter(true);
+    g.update_lcd();
+    EXPECT_EQ(item2.checked(), true);
+
+    menu.set_on_enter(false);
+    g.update_lcd();
+
+    // uncheck item2
+    menu.set_on_enter(true);
+    g.update_lcd();
+    EXPECT_EQ(item2.checked(), false);
+}

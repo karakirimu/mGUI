@@ -1321,6 +1321,9 @@ public:
 
         switch (item_type_) {
         case mgui_menu_item_type::Check:
+            if (get_on_press()) {
+                is_checked_ = !is_checked_;
+            }
             draw_check_box(draw, is_filled);
             break;
         case mgui_menu_item_type::Menu:
@@ -1395,8 +1398,8 @@ public:
     }
     inline mgui_menu_property* menu() { return child_menu_; }
 
-    inline void set_checked(bool is_checked) { 
-        is_checked_ = is_checked;
+    inline void set_check(bool init_value) { 
+        is_checked_ = init_value;
         item_type_ = mgui_menu_item_type::Check;
     }
     inline bool checked() const { return is_checked_; }
