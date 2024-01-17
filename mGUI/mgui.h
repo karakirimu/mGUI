@@ -1347,8 +1347,8 @@ public:
         check_rect_outer.set_x(screen_width - h + 1);
         check_rect_outer.set_y(h * index + 1);
 
-        check_rect_inner.set_height(h - 5);
-        check_rect_inner.set_width(h - 5);
+        check_rect_inner.set_height(h - 6);
+        check_rect_inner.set_width(h - 6);
         check_rect_inner.set_x(screen_width - h + 3);
         check_rect_inner.set_y(h * index + 3);
         check_rect_inner.set_fill(true);
@@ -1474,7 +1474,7 @@ public:
     inline uint16_t selected_index() const { return p.selected_index_; }
     inline void set_selected_index(uint16_t index_){
         p.selected_index_ = index_;
-        int first = ((index_ - item_count_) > 0)? index_ - item_count_ : 0;
+        int first = ((index_ + 1 - item_count_) > 0)? index_ + 1 - item_count_ : 0;
 
         if (first < p.menu_item_.count()) {
             item_first_node_ = p.menu_item_.get_node(first);
