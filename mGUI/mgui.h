@@ -221,13 +221,13 @@ public:
         }
 
         for (int x = x0; x <=x1 ; x++) {
-            draw_pixel(x, y0, true);
-            draw_pixel(x, y1, true);
+            draw_pixel(x, y0, on);
+            draw_pixel(x, y1, on);
         }
 
         for(int y = y0; y <= y1; y++) {
-            draw_pixel(x0, y, true);
-            draw_pixel(x1, y, true);
+            draw_pixel(x0, y, on);
+            draw_pixel(x1, y, on);
         }
     }
 
@@ -466,9 +466,9 @@ private:
     }
 
     inline bool check_bit_on(int x, int y, uint8_t value) {
-        uint8_t bit_idx = (1 << (y % 8));
-        bool on = (value & bit_idx) & bit_idx;
-        return on;
+       uint8_t bit_idx = (1 << (7 - y % 8));
+       bool on = (value & bit_idx) & bit_idx;
+       return on;
     }
 
     uint8_t *lcd_buffer_;
@@ -1070,7 +1070,6 @@ public:
     void update(mgui_draw* draw) {
         for(int i = 0; i < text_property_->get_text_length(); i++) {
             int x0 = x_ + font()->font_width() * i;
-            //draw_char(draw, x0, y(), text_property_->get_text_index(i));
             draw->draw_char(font(), x0, y_, text_property_->get_text_index(i), invert_);
         }
     }
@@ -1099,23 +1098,6 @@ public:
     inline void set_invert(bool invert) { invert_ = invert; }
 
 private:
-    //inline void draw_char(mgui_draw* draw, int x, int y, int index) {               
-    //    for(int y1 = 0; y1 < font()->font_height(); y1++) {
-    //        for(int x1 = 0; x1 < font()->font_width(); x1++) {
-    //            int pos = index + y1 / 8 * font()->font_width() + x1;
-    //            bool checkbit = check_bit_on(x1, y1, font()->resource()[pos]);
-    //            if (checkbit) {
-    //                draw->draw_pixel(x + x1, y + y1, (invert_)? !checkbit : checkbit);
-    //            }
-    //        }
-    //    }
-    //}
-
-    //bool check_bit_on(int x, int y, uint8_t value) {
-    //    uint8_t bit_idx = (1 << (7 - y % 8));
-    //    bool on = (value & bit_idx) & bit_idx;
-    //    return on;
-    //}
 
     uint16_t width_;
     uint16_t height_;
@@ -1304,18 +1286,19 @@ public:
         is_checked_ = false;
         item_type_ = mgui_menu_item_type::None;
     }
-    ~mgui_menu_item(){}
+    virtual ~mgui_menu_item(){}
 
     mgui_object_type type() const { return mgui_object_type::MenuItem; }
 
     void update(mgui_draw* draw) {
-        bool is_filled = get_on_selected()? !get_on_press() : get_on_press();
+        bool focus = get_on_selected()? !get_on_press() : get_on_press();
 
-        rect_.set_fill(is_filled);
-        rect_.update(draw);
+        if (focus) {
+            rect_.update(draw);
+        }
  
         if (text_) {
-            text_->set_invert(is_filled);
+            text_->set_invert(focus);
             text_->update(draw);
         }
 
@@ -1324,10 +1307,10 @@ public:
             if (get_on_press()) {
                 is_checked_ = !is_checked_;
             }
-            draw_check_box(draw, is_filled);
+            draw_check_box(draw, focus);
             break;
         case mgui_menu_item_type::Menu:
-            draw_menu_guide(draw, is_filled);
+            draw_menu_guide(draw, focus);
             break;
         default:
             break;
@@ -1356,6 +1339,7 @@ public:
         rect_.set_y(h * index);
         rect_.set_width(screen_width);
         rect_.set_height(h);
+        rect_.set_fill(true);
 
         // check box
         check_rect_outer.set_height(h - 2);
@@ -1363,8 +1347,8 @@ public:
         check_rect_outer.set_x(screen_width - h + 1);
         check_rect_outer.set_y(h * index + 1);
 
-        check_rect_inner.set_height(h - 4);
-        check_rect_inner.set_width(h - 4);
+        check_rect_inner.set_height(h - 5);
+        check_rect_inner.set_width(h - 5);
         check_rect_inner.set_x(screen_width - h + 3);
         check_rect_inner.set_y(h * index + 3);
         check_rect_inner.set_fill(true);
@@ -1443,7 +1427,7 @@ private:
 
 class mgui_menu : mgui_object {
 public:
-    mgui_menu(const uint16_t width, const uint16_t height, const uint16_t item_count = 4){
+    explicit mgui_menu(const uint16_t width, const uint16_t height, const uint16_t item_count = 4){
         moved_from_ = new mgui_stack<mgui_menu_property>();
         window_width_ = width;
         window_height_ = height;
@@ -1468,14 +1452,22 @@ public:
     }
 
     inline void add(mgui_menu_item* item) {
-        if (item->type() == mgui_object_type::MenuItem) {
-            p.menu_item_.add(item);
+        p.menu_item_.add(item);
+
+        if(p.menu_item_.count() == 1){
+            set_selected_index(0);
         }
     }
 
     inline void remove(mgui_menu_item* item) {
-        if (item->type() == mgui_object_type::MenuItem) {
-            p.menu_item_.remove(item);
+        if(item_first_node_!= nullptr && item_first_node_->obj == item){
+            item_first_node_ = nullptr;
+        }
+
+        p.menu_item_.remove(item);
+
+        if(p.menu_item_.count() == 0) {
+            item_first_node_ = nullptr;
         }
     }
 
@@ -1542,7 +1534,7 @@ public:
         if (p.selected_index_ < p.menu_item_.count() - 1) {
             p.menu_item_.get(p.selected_index_)->set_on_selected(false);
             p.menu_item_.get(p.selected_index_)->set_on_press(false);
-            p.selected_index_++;
+            set_selected_index(p.selected_index_ + 1);
             p.menu_item_.get(p.selected_index_)->set_on_selected(true);
         }
     }
@@ -1563,13 +1555,13 @@ public:
         if (p.selected_index_ > 0) {
             p.menu_item_.get(p.selected_index_)->set_on_selected(false);
             p.menu_item_.get(p.selected_index_)->set_on_press(false);
-            p.selected_index_--;
+            set_selected_index(p.selected_index_ - 1);
             p.menu_item_.get(p.selected_index_)->set_on_selected(true);
         }
     }
 
     inline uint16_t item_count() const { return item_count_; }
-    inline uint16_t set_item_count(uint16_t item_count) { item_count_ = item_count; }
+    inline void set_item_count(uint16_t item_count) { item_count_ = item_count; }
 
     inline uint16_t width() const { return window_width_; }
     inline void set_width(uint16_t width) { window_width_ = width; }

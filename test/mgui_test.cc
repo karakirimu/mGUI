@@ -539,7 +539,7 @@ TEST_P(MenuItemTest, Selected) {
 
     g.add((mgui_object*)&menu_item);
     g.update_lcd();
-    // debug_print(g.lcd()); // OK
+    //debug_print(g.lcd()); // OK
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -780,4 +780,30 @@ TEST(MenuTest, Check_Menu){
     menu.set_on_enter(true);
     g.update_lcd();
     EXPECT_EQ(item2.checked(), false);
+
+    g.update_lcd();
+    //debug_print(g.lcd()); // OK
+}
+
+TEST(MenuTest, Show_Only) {
+    mgui g(WIDTH, HEIGHT);
+
+    mgui_menu_item item;
+    mgui_menu_item item2;
+    item2.set_check(false);
+    mgui_menu_item item3;
+    mgui_menu_item item4;
+    mgui_menu_item item5;
+
+    mgui_menu menu(WIDTH, HEIGHT);
+    menu.add(&item);
+    menu.add(&item2);
+    menu.add(&item3);
+    menu.add(&item4);
+    menu.add(&item5);
+    
+    g.add((mgui_object*)&menu);
+    g.update_lcd();
+
+    //debug_print(g.lcd()); // OK
 }
