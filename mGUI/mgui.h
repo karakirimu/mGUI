@@ -3,9 +3,9 @@
  * @author karakirimu
  * @brief Simple monochrome GUI operation program
  * @version 0.1
- * @date 2023-07-16
+ * @date 2024-01-21
  * 
- * @copyright Copyright (c) 2023 karakirimu
+ * @copyright Copyright (c) 2024 karakirimu
  * 
  */
 #ifndef MGUI_H
@@ -26,6 +26,7 @@ enum mgui_object_type {
     Circle,
     Triangle,
     Pixel,
+    Line,
     Text,
     Button,
     MenuItem,
@@ -102,6 +103,7 @@ public:
      * 
      * @param width Target LCD width
      * @param height Target LCD height
+     * @param buffer Buffer to reflect drawing results
      */
     explicit mgui_draw(const uint16_t width, const uint16_t height, uint8_t *buffer){
         lcd_width_ = width;
@@ -115,7 +117,7 @@ public:
     ~mgui_draw(){}
 
     /**
-     * @brief Draw circle
+     * @brief Drawing circle
      * 
      * @param x0 center point of X
      * @param y0 center point of Y
@@ -161,6 +163,17 @@ public:
         }
     }
 
+    /**
+     * @brief Drawing rounded rectangle
+     * 
+     * @param x0 x position at upper left
+     * @param y0 y position at upper left
+     * @param x1 x position at bottom right
+     * @param y1 y position at bottom right
+     * @param r rounded corner radius
+     * @param fill If you want to fill the figure, set true
+     * @param on if true, set 1; if false, set 0
+     */
     void draw_rectangle_rounded(int x0, int y0, int x1, int y1, int r, bool fill = false, bool on = true){
         
         if(fill){
@@ -214,6 +227,16 @@ public:
         }
     }
 
+    /**
+     * @brief Drawing rectangle
+     * 
+     * @param x0 x position at upper left
+     * @param y0 y position at upper left
+     * @param x1 x position at bottom right
+     * @param y1 y position at bottom right
+     * @param fill If you want to fill the figure, set true
+     * @param on if true, set 1; if false, set 0
+     */
     void draw_rectangle(int x0, int y0, int x1, int y1, bool fill = false, bool on = true){
         if(fill){
             draw_rectangle_fill(x0, y0, x1, y1, on);
@@ -238,6 +261,15 @@ public:
         draw_line(x1, y1, x2, y2, !invert);
     }
 
+    /**
+     * @brief Drawing straight line
+     * 
+     * @param x0 x position at start
+     * @param y0 y position at start
+     * @param x1 x position at end
+     * @param y1 y position at end
+     * @param on if true, set 1; if false, set 0
+     */
     void draw_line(int x0, int y0, int x1, int y1, bool on){
         int sx = x0 < x1 ? 1 : -1;
         int sy = y0 < y1 ? 1 : -1;
@@ -263,6 +295,15 @@ public:
         }
     }
 
+    /**
+     * @brief Drawing straight line other than diagonals
+     * 
+     * @param x0 x position at start
+     * @param y0 y position at start
+     * @param length straight line length
+     * @param on if true, set 1; if false, set 0
+     * @param direction Direction for drawing a straight line
+     */
     void draw_line_straight(int x0, int y0, int length, bool on, mgui_draw_line_dir direction) {
 
         if (direction == mgui_draw_line_dir::Left) {
@@ -281,6 +322,7 @@ public:
 
     /**
      * @brief Sets the color at the specified position
+     * The point outside the set height and width are ignored.
      * 
      * @param x x position
      * @param y y position
@@ -885,6 +927,50 @@ private:
 };
 
 /**
+ * @brief It draws straight line.
+ *
+ */
+class mgui_line : mgui_object {
+public:
+    mgui_line() {
+        x0_ = 0;
+        y0_ = 0;
+        x1_ = 0;
+        y1_ = 0;
+        invert_ = 0;
+    }
+    virtual ~mgui_line() {}
+
+    mgui_object_type type() const { return mgui_object_type::Line; }
+
+    inline uint16_t x0() const { return x0_; }
+    inline void set_x0(uint16_t x0) { x0_ = x0; }
+
+    inline uint16_t y0() const { return y0_; }
+    inline void set_y0(uint16_t y0) { y0_ = y0; }
+
+    inline uint16_t x1() const { return x1_; }
+    inline void set_x1(uint16_t x1) { x1_ = x1; }
+
+    inline uint16_t y1() const { return y1_; }
+    inline void set_y1(uint16_t y1) { y1_ = y1; }
+
+    inline uint8_t invert() const { return invert_; }
+    inline void set_invert(uint8_t invert) { invert_ = invert; }
+
+    void update(mgui_draw* draw) {
+        draw->draw_line(x0_, y0_, x1_, y1_, !invert_);
+    }
+
+private:
+    uint16_t x0_;
+    uint16_t y0_;
+    uint16_t x1_;
+    uint16_t y1_;
+    uint8_t invert_;
+};
+
+/**
  * @brief It draws circle.
  * 
  */
@@ -1273,7 +1359,8 @@ public:
 enum class mgui_menu_item_type {
     None,
     Check,
-    Menu
+    Menu,
+    ReturnToParentMenu
 };
 
 class mgui_menu_item : public mgui_core_ui {
@@ -1284,11 +1371,15 @@ public:
         text_rel_y_ = 0;
         child_menu_ = nullptr;
         is_checked_ = false;
+        is_return_menu_ = false;
+        previous_on_press_ = false;
         item_type_ = mgui_menu_item_type::None;
     }
     virtual ~mgui_menu_item(){}
 
     mgui_object_type type() const { return mgui_object_type::MenuItem; }
+
+    mgui_menu_item_type item_type() const { return item_type_; }
 
     void update(mgui_draw* draw) {
         bool focus = get_on_selected()? !get_on_press() : get_on_press();
@@ -1304,13 +1395,17 @@ public:
 
         switch (item_type_) {
         case mgui_menu_item_type::Check:
-            if (get_on_press()) {
+            if(!previous_on_press_ && get_on_press()){
                 is_checked_ = !is_checked_;
             }
+            previous_on_press_ = get_on_press();
             draw_check_box(draw, focus);
             break;
         case mgui_menu_item_type::Menu:
             draw_menu_guide(draw, focus);
+            break;
+        case mgui_menu_item_type::ReturnToParentMenu:
+            draw_return_menu_guide(draw, focus);
             break;
         default:
             break;
@@ -1354,18 +1449,39 @@ public:
         check_rect_inner.set_fill(true);
 
         // menu
-        menu_arrow.set_x0(screen_width - h + 2);
-        menu_arrow.set_y0(h * index + 2);
-        menu_arrow.set_x1(screen_width - h + 2);
-        menu_arrow.set_y1(h * (index + 1) - 2);
-        menu_arrow.set_x2(screen_width - 2);
-        menu_arrow.set_y2(h * index + (h >> 1));
+        constexpr int margin = 5;
+        menu_right_arrow_up.set_x0(screen_width - h + margin);
+        menu_right_arrow_up.set_y0(h * index + margin);
+        menu_right_arrow_up.set_x1(screen_width - margin);
+        menu_right_arrow_up.set_y1(h * index + (h >> 1) + 1);
 
-        if (text_) {
-            update_text_property();
-            /*uint16_t text_width_end = text_->width() + text_rel_x_;
-            uint16_t text_height_end = rect_.y() + text_->font()->font_height() + text_rel_y_;*/
+        menu_right_arrow_down.set_x0(screen_width - h + margin);
+        menu_right_arrow_down.set_y0(h * (index + 1) - margin);
+        menu_right_arrow_down.set_x1(screen_width - margin);
+        menu_right_arrow_down.set_y1(h * index + (h >> 1));
+
+        // return_menu_
+        menu_left_arrow_up.set_x0(h - margin);
+        menu_left_arrow_up.set_y0(h * index + margin);
+        menu_left_arrow_up.set_x1(margin);
+        menu_left_arrow_up.set_y1(h * index + (h >> 1) + 1);
+
+        menu_left_arrow_down.set_x0(h - margin);
+        menu_left_arrow_down.set_y0(h * (index + 1) - margin);
+        menu_left_arrow_down.set_x1(margin);
+        menu_left_arrow_down.set_y1(h * index + (h >> 1));
+
+        if (!text_) {
+            return;
         }
+
+        if (item_type_ == mgui_menu_item_type::ReturnToParentMenu) {
+            text_->set_x(h + text_rel_x_);
+        }
+        else {
+            text_->set_x(text_rel_x_);
+        }
+        text_->set_y(rect_.y() + text_rel_y_);
     }
 
     inline mgui_text* text() const { return text_; }
@@ -1373,7 +1489,6 @@ public:
         text_ = text;
         text_rel_x_ = text_rel_x;
         text_rel_y_ = text_rel_y;
-        update_text_property();
     }
 
     inline void set_menu(mgui_menu_property* menu) { 
@@ -1382,6 +1497,12 @@ public:
     }
     inline mgui_menu_property* menu() { return child_menu_; }
 
+    inline void set_return_menu(bool init_value) {
+        is_return_menu_ = init_value;
+        item_type_ = mgui_menu_item_type::ReturnToParentMenu;
+    }
+    inline bool return_menu() const { return is_return_menu_; }
+
     inline void set_check(bool init_value) { 
         is_checked_ = init_value;
         item_type_ = mgui_menu_item_type::Check;
@@ -1389,10 +1510,6 @@ public:
     inline bool checked() const { return is_checked_; }
 
 private:
-    inline void update_text_property() {
-        text_->set_x(text_rel_x_);
-        text_->set_y(rect_.y() + text_rel_y_);
-    }
 
     inline void draw_check_box(mgui_draw* draw, bool invert) {
         check_rect_outer.set_invert(invert);
@@ -1405,20 +1522,37 @@ private:
 
     inline void draw_menu_guide(mgui_draw* draw, bool invert) {
         if (child_menu_) {
-            menu_arrow.set_invert(invert);
-            menu_arrow.update(draw);
+            menu_right_arrow_up.set_invert(invert);
+            menu_right_arrow_down.set_invert(invert);
+            menu_right_arrow_up.update(draw);
+            menu_right_arrow_down.update(draw);
         }
     }
 
+    inline void draw_return_menu_guide(mgui_draw* draw, bool invert) {
+        if (is_return_menu_) {
+            menu_left_arrow_up.set_invert(invert);
+            menu_left_arrow_down.set_invert(invert);
+            menu_left_arrow_up.update(draw);
+            menu_left_arrow_down.update(draw);
+        }
+    }
+
+    bool previous_on_press_;
     bool is_checked_;
+    bool is_return_menu_;
     mgui_menu_item_type item_type_;
     mgui_menu_property* child_menu_;
     mgui_rectangle rect_;
 
     mgui_rectangle check_rect_outer;
     mgui_rectangle check_rect_inner;
-    
-    mgui_triangle menu_arrow;
+
+    mgui_line menu_right_arrow_up;
+    mgui_line menu_right_arrow_down;
+
+    mgui_line menu_left_arrow_up;
+    mgui_line menu_left_arrow_down;
     
     mgui_text *text_;
     uint16_t text_rel_x_;
@@ -1433,6 +1567,8 @@ public:
         window_height_ = height;
         item_first_node_ = nullptr;
         item_count_ = item_count;
+        on_return_ = false;
+        on_enter_ = false;
     }
     ~mgui_menu(){
         delete moved_from_;
@@ -1492,9 +1628,15 @@ public:
 
     /**
     * @brief Return specified menu list.
-    * @param on_enter The callback, this returns some button pressed.
+    * @param on_return 
     */
     inline void set_on_return(bool on_return) {
+        if(on_return_ == on_return){
+            return;
+        }
+
+        on_return_ = on_return;
+
         if (on_return && moved_from_->is_empty() == false) {
             p = static_cast<mgui_menu_property&&>(moved_from_->pop());
         }
@@ -1502,13 +1644,28 @@ public:
      
     /**
     * @brief Specified menu item entered.
-    * @param on_enter The callback, this returns some button pressed.
+    * @param on_enter 
     */
     inline void set_on_enter(bool on_enter) {
-        p.menu_item_.get(p.selected_index_)->set_on_press(on_enter);
-        mgui_menu_property *menu = get_selected_item()->menu();
+        if(on_enter_ == on_enter){
+            return;
+        }
 
-        if (menu) {
+        on_enter_ = on_enter;
+
+        mgui_menu_item *item = p.menu_item_.get(p.selected_index_);
+
+        // Return from item
+        if (on_enter
+         && item->item_type() == mgui_menu_item_type::ReturnToParentMenu
+         && moved_from_->is_empty() == false) {
+            p = static_cast<mgui_menu_property&&>(moved_from_->pop());
+            return;
+        }
+
+        item->set_on_press(on_enter);
+        mgui_menu_property *menu = get_selected_item()->menu();
+        if (on_enter && menu) {
             // set own copy
             moved_from_->push(p);
 
@@ -1570,6 +1727,9 @@ public:
     inline void set_height(uint16_t height) { window_height_ = height; }
 
 private:
+    bool on_return_;
+    bool on_enter_;
+
     mgui_list_node<mgui_menu_item*>* item_first_node_;
     uint16_t item_count_;
     uint16_t window_height_;
