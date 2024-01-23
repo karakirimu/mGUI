@@ -254,6 +254,17 @@ public:
         }
     }
 
+    /**
+     * @brief Drawing triangle
+     * 
+     * @param x0 x position 0
+     * @param y0 y position 0
+     * @param x1 x position 1
+     * @param y1 y position 1
+     * @param x2 x position 2
+     * @param y2 y position 2
+     * @param invert if true, set 0; if false, set 1
+     */
     void draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, bool invert = false) {
         
         draw_line(x0, y0, x1, y1, !invert);
@@ -393,8 +404,7 @@ public:
     uint8_t * lcd() { return lcd_buffer_; }
 
 private:
-    // inline int abs(int x) { return x > 0 ? x : -x; }
-
+    
     inline void draw_circle_fill(int x0, int y0, int r) {
         int x = r;
         int y = 0;
@@ -1365,10 +1375,6 @@ enum class mgui_menu_item_type {
 
 class mgui_menu_item : public mgui_core_ui {
 public:
-    mgui_menu_item() {
-        mgui_menu_item(nullptr);
-    }
-
     explicit mgui_menu_item(mgui_text* text) : mgui_core_ui() {
         text_ = text;
         text_rel_x_ = 0;
@@ -1379,6 +1385,11 @@ public:
         previous_on_press_ = false;
         item_type_ = mgui_menu_item_type::None;
     }
+
+    mgui_menu_item() {
+        mgui_menu_item(nullptr);
+    }
+
     virtual ~mgui_menu_item(){}
 
     mgui_object_type type() const { return mgui_object_type::MenuItem; }
@@ -1853,7 +1864,7 @@ public:
     * @param on_press If true, the state is pressed; if false, the state is not pressed
     */
     inline void set_on_press(bool on_press) {
-    ((mgui_core_ui*)list->get(selected_index_))->set_on_press(on_press);
+        ((mgui_core_ui*)list->get(selected_index_))->set_on_press(on_press);
     }
 
     /**
@@ -1863,7 +1874,7 @@ public:
     * @return false Not pressed
     */
     inline bool get_on_press() const { 
-    return ((mgui_core_ui*)list->get(selected_index_))->get_on_press();
+        return ((mgui_core_ui*)list->get(selected_index_))->get_on_press();
     }
 
 private:
