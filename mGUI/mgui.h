@@ -1365,8 +1365,12 @@ enum class mgui_menu_item_type {
 
 class mgui_menu_item : public mgui_core_ui {
 public:
-    mgui_menu_item(): mgui_core_ui() {
-        text_ = nullptr;
+    mgui_menu_item() {
+        mgui_menu_item(nullptr);
+    }
+
+    explicit mgui_menu_item(mgui_text* text) : mgui_core_ui() {
+        text_ = text;
         text_rel_x_ = 0;
         text_rel_y_ = 0;
         child_menu_ = nullptr;
@@ -1592,6 +1596,7 @@ public:
 
         if(p.menu_item_.count() == 1){
             set_selected_index(0);
+            item->set_on_selected(true);
         }
     }
 
