@@ -15,6 +15,12 @@
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 
+// prototype declare
+class mgui_menu_item;
+
+// constants
+constexpr int HASH_TABLE_SIZE = 20;
+
 // enums
 enum mgui_draw_line_dir {
     Left,
@@ -551,8 +557,8 @@ public:
 
 template <typename O>
 struct mgui_list_node {
-  O obj;
-  mgui_list_node* next;
+    O obj;
+    mgui_list_node* next = nullptr;
 };
 
 template <typename T>
@@ -574,16 +580,6 @@ class mgui_list {
       }
   }
 
-  mgui_list& operator=(const mgui_list& other) {
-      if (this != &other) {
-          clear();
-          for (mgui_list_node<T>* node = other.head; node != nullptr; node = node->next) {
-              add(node->obj);
-          }
-      }
-      return *this;
-  }
-
   mgui_list(mgui_list&& other) noexcept {
       head = other.head;
       tail = other.tail;
@@ -592,6 +588,20 @@ class mgui_list {
       other.head = nullptr;
       other.tail = nullptr;
       other.counter = 0;
+  }
+
+  ~mgui_list() {
+    clear();
+  }
+
+  mgui_list& operator=(const mgui_list& other) {
+      if (this != &other) {
+          clear();
+          for (mgui_list_node<T>* node = other.head; node != nullptr; node = node->next) {
+              add(node->obj);
+          }
+      }
+      return *this;
   }
 
   mgui_list& operator=(mgui_list&& other) noexcept {
@@ -607,10 +617,6 @@ class mgui_list {
           other.counter = 0;
       }
       return *this;
-  }
-
-  ~mgui_list() {
-    clear();
   }
 
   void add(const T &item) {
@@ -732,6 +738,175 @@ private:
     mgui_list_node<T>* head_;
 };
 
+class mgui_string {
+public:
+    mgui_string() {
+        clear();
+    }
+
+    mgui_string(const char* str) {
+        build(str);
+    }
+
+    mgui_string(const mgui_string& other) {
+        clear();
+        str_ = other.str_;
+        str_length_ = other.str_length_;
+    }
+
+    ~mgui_string() {
+        clear();
+    }
+
+    const char operator[](int index) {
+        if (strlen(str_) != str_length_) {
+            return '\0';
+        }
+
+        return str_[index];
+    }
+
+    mgui_string operator=(const char* str) {
+        return mgui_string(str);
+    }
+
+    bool operator==(const mgui_string& str) const {
+        if (str.str_length_ != str_length_) {
+            return false;
+        }
+
+        return memcmp(str_, str.str_, str_length_) == 0;
+    }
+
+    bool operator==(const char* str) const {
+        if (strlen(str) != str_length_) {
+            return false;
+        }
+
+        return memcmp(str_, str, str_length_) == 0;
+    }
+
+    const char* c_str() const { return str_; }
+
+    int length() const { return str_length_; }
+
+private:
+    inline void build(const char* str) {
+        str_length_ = strlen(str);
+        str_ = new char[str_length_ + 1];
+        memcpy(str_, str, str_length_);
+        str_[str_length_] = '\0';
+    }
+
+    inline void clear() {
+        str_ = nullptr;
+        str_length_ = 0;
+        if (str_) {
+            delete[] str_;
+        }
+    }
+
+    inline int strlen(const char* str) const {
+        int len = 0;
+        while (*str != '\0') {
+            len++;
+            str++;
+        }
+        return len;
+    }
+
+
+    char* str_;
+    int str_length_;
+};
+
+template <typename K, typename V>
+class mgui_pair { 
+public:
+    bool operator==(const mgui_pair& pair) {
+        return (key == pair.key && value == pair.value);
+    }
+
+    K key;
+    V value;
+};
+
+template <typename V>
+class mgui_string_map {
+public:
+    mgui_string_map() {
+        clear();
+    }
+    ~mgui_string_map() {
+        clear();
+    }
+
+    void insert(const mgui_string key, const V& value) {
+        unsigned long index = djb2_hash(key.c_str());
+
+        mgui_pair<mgui_string, V> pair = { key, value };
+        table[index].add(pair);
+    }
+
+    V get(const mgui_string key) {
+        unsigned long index = djb2_hash(key.c_str());
+        const int count = table[index].count();
+
+        mgui_list_node<mgui_pair<mgui_string, V>>* node = table[index].first();
+        for (int i = 0; i < count; i++) {
+            if (node == nullptr) {
+                break;
+            }
+
+            if (node->obj.key == key) {
+                return node->obj.value;
+            }
+
+            node = node->next;
+        }
+
+        return (V)nullptr;
+    }
+
+    void remove(mgui_string key) {
+        unsigned long index = djb2_hash(key.c_str());
+        const int count = table[index].count();
+
+        mgui_list_node<mgui_pair<mgui_string, V>>* node = table[index].first();
+        for (int i = 0; i < count; i++) {
+            if (node == nullptr) {
+                break;
+            }
+
+            if (node->obj.key == key) {
+                table[index].remove(node->obj);
+                break;
+            }
+
+            node = node->next;
+        }
+    }
+
+    void clear() {
+        for (int i = 0; i < HASH_TABLE_SIZE; i++) {
+            table[i].clear();
+        }
+    }
+
+private:
+    inline unsigned long djb2_hash(const char* data) {
+        unsigned long hash = 5381;
+        int c;
+
+        while (c = *data++) {
+            hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+        }
+        return hash % HASH_TABLE_SIZE;
+    }
+
+    mgui_list<mgui_pair<mgui_string, V>> table[HASH_TABLE_SIZE];
+};
+
 class mgui {
 public:
     /**
@@ -745,29 +920,40 @@ public:
         lcd_buffer = new uint8_t[buffer_size]();
         memset(lcd_buffer, 0, buffer_size);
         draw = new mgui_draw(width, height, lcd_buffer);
-        list = new mgui_list<mgui_object*>();
     }
 
     ~mgui() {
         delete draw;
-        delete list;
         delete[] lcd_buffer;
     }
 
+    inline bool operator==(mgui& gui) {
+        if (buffer_size != gui.buffer_size) return false;
+        if (list.count() != gui.list.count()) return false;
+        int counter = list.count();
+        for (int i = 0; i < counter; i++) {
+            if (list.get(i)->type() != gui.list.get(i)->type()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     inline void add(mgui_object *item){
-        list->add(item);
+        list.add(item);
     }
 
     inline void remove(mgui_object *item){
-        list->remove(item);
+        list.remove(item);
     }
 
     inline void clear(){
-        list->clear();
+        list.clear();
     }
 
     inline void update_lcd() {
-        mgui_list_node<mgui_object*>* node = list->first();
+        mgui_list_node<mgui_object*>* node = list.first();
 
         // clear buffer
         memset(lcd_buffer, 0, buffer_size);
@@ -783,7 +969,7 @@ public:
 
 private:
     mgui_draw* draw;
-    mgui_list<mgui_object*>* list;
+    mgui_list<mgui_object*> list;
     uint8_t* lcd_buffer;
     int buffer_size;
 };
@@ -1346,10 +1532,6 @@ class mgui_button : public mgui_core_ui {
  };
 
 /**
- * forward declare
- */
-class mgui_menu_item;
-/**
  * @brief 
  * Attribute information shared to create a hierarchical menu structure
  */
@@ -1375,7 +1557,7 @@ enum class mgui_menu_item_type {
 
 class mgui_menu_item : public mgui_core_ui {
 public:
-    explicit mgui_menu_item(mgui_text* text) : mgui_core_ui() {
+    explicit mgui_menu_item(mgui_text* text = nullptr) : mgui_core_ui() {
         text_ = text;
         text_rel_x_ = 0;
         text_rel_y_ = 0;
@@ -1384,10 +1566,7 @@ public:
         is_return_menu_ = false;
         previous_on_press_ = false;
         item_type_ = mgui_menu_item_type::None;
-    }
-
-    mgui_menu_item() {
-        mgui_menu_item(nullptr);
+        rect_ = mgui_rectangle();
     }
 
     virtual ~mgui_menu_item(){}
@@ -1799,8 +1978,8 @@ public:
     * @param item Elements to be added
     */
     inline void add(mgui_core_ui* item) { 
-    list->add(item);
-    reset_selection();
+        list->add(item);
+        reset_selection();
     }
 
     /**
@@ -1901,8 +2080,32 @@ private:
             node = node->next;
         } 
     }
+
     mgui_list<mgui_core_ui*>* list;
     uint16_t selected_index_;
+};
+
+class mgui_display_selector {
+public:
+    mgui_display_selector() = default;
+    ~mgui_display_selector() {
+        display_.clear();
+    }
+
+    void add(mgui_string title, mgui& view) {
+        display_.insert(title, view);
+    }
+
+    void remove(mgui_string title) {
+        display_.remove(title);
+    }
+
+    mgui select(mgui_string title) {
+        return display_.get(title);
+    }
+
+private:
+    mgui_string_map<mgui> display_;
 };
 
 #endif // MGUI_H

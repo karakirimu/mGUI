@@ -3,7 +3,6 @@
 
 #include "../mGUI/mgui.h"
 #include "font_16x8.h"
-#include <iostream>
 
 constexpr int WIDTH = 128;
 constexpr int HEIGHT = 64;
@@ -14,11 +13,37 @@ int _byte_index(int x, int y) {
 	return (y >> 3) * WIDTH + x;
 }
 
-void debug_print(uint8_t *data) {
+static void debug_print(unsigned char *data) {
     for (int i = 0; i < BUFFER_SIZE; i++) {
         std::cout << "0x" << std::hex << (unsigned int)data[i] << ",";
     }
     std::cout << std::endl;
+}
+
+TEST(String, basic) {
+    mgui_string str("test");
+    mgui_string str2 = "test2";
+
+    EXPECT_TRUE(str == "test");
+    EXPECT_FALSE(str == "t");
+
+    EXPECT_EQ(str[0], 't');
+    EXPECT_EQ(str[1], 'e');
+    EXPECT_EQ(str[2], 's');
+    EXPECT_EQ(str[3], 't');
+    EXPECT_EQ(str[4], '\0');
+    EXPECT_EQ(str.length(), 4);
+
+    EXPECT_EQ(str2[0], 't');
+    EXPECT_EQ(str2[1], 'e');
+    EXPECT_EQ(str2[2], 's');
+    EXPECT_EQ(str2[3], 't');
+    EXPECT_EQ(str2[4], '2');
+    EXPECT_EQ(str2[5], '\0');
+
+    EXPECT_EQ(str2.length(), 5);
+
+    EXPECT_FALSE(str == str2);
 }
 
 TEST(List, Order) {
@@ -92,7 +117,7 @@ TEST(Stack, basic) {
     EXPECT_EQ(test.pop(), 1);
     EXPECT_EQ(test.pop(), 0);
     EXPECT_EQ(test.is_empty(), true);
-}
+};
 
 TEST(Stack, object) {
     mgui_stack<int*> test;
@@ -114,7 +139,42 @@ TEST(Stack, object) {
     EXPECT_EQ(test.pop(), &data[1]);
     EXPECT_EQ(test.pop(), &data[0]);
     EXPECT_EQ(test.is_empty(), true);
-}
+};
+
+TEST(Map, string) {
+    mgui_string_map<char> test;
+    test.insert("a", 'A');
+    test.insert("ab", 'B');
+    test.insert("abc", 'C');
+    test.insert("abcd", 'D');
+
+    EXPECT_EQ(test.get("a"), 'A');
+    EXPECT_EQ(test.get("ab"), 'B');
+    EXPECT_EQ(test.get("abc"), 'C');
+    EXPECT_EQ(test.get("abcd"), 'D');
+
+    test.remove("abc");
+
+    EXPECT_EQ(test.get("a"), 'A');
+    EXPECT_EQ(test.get("ab"), 'B');
+    EXPECT_EQ(test.get("abcd"), 'D');
+
+    test.remove("a");
+
+    EXPECT_EQ(test.get("ab"), 'B');
+    EXPECT_EQ(test.get("abcd"), 'D');
+
+    test.remove("abcd");
+
+    EXPECT_EQ(test.get("ab"), 'B');
+
+    test.remove("ab");
+
+    test.remove("a");
+
+    // No item
+    EXPECT_TRUE(test.get("a") == (char)nullptr);
+};
 
 typedef std::tuple<int, int, int> P_A3;
 typedef std::tuple<int, int, int, int> P_A4;
@@ -711,34 +771,42 @@ TEST(MenuTest, MenuStack) {
 
     // enter menu
     menu.set_on_enter(true);
+    menu.set_on_enter(false);
     EXPECT_EQ(menu.get_selected_item(), &item2);
 
     // enter menu
     menu.set_on_enter(true);
+    menu.set_on_enter(false);
     EXPECT_EQ(menu.get_selected_item(), &item3);
 
     // enter menu
     menu.set_on_enter(true);
+    menu.set_on_enter(false);
     EXPECT_EQ(menu.get_selected_item(), &item4);
 
     // enter menu
     menu.set_on_enter(true);
+    menu.set_on_enter(false);
     EXPECT_EQ(menu.get_selected_item(), &item5);
 
     // revert menu
     menu.set_on_return(true);
+    menu.set_on_return(false);
     EXPECT_EQ(menu.get_selected_item(), &item4);
 
     // revert menu
     menu.set_on_return(true);
+    menu.set_on_return(false);
     EXPECT_EQ(menu.get_selected_item(), &item3);
 
     // revert menu
     menu.set_on_return(true);
+    menu.set_on_return(false);
     EXPECT_EQ(menu.get_selected_item(), &item2);
 
     // revert menu
     menu.set_on_return(true);
+    menu.set_on_return(false);
     EXPECT_EQ(menu.get_selected_item(), &item);
 }
 
