@@ -841,18 +841,36 @@ public:
         clear();
     }
 
-    void insert(const mgui_string key, const V& value) {
+    void insert(const mgui_string key, V value) {
         unsigned long index = djb2_hash(key.c_str());
 
-        mgui_pair<mgui_string, V> pair = { key, value };
+        mgui_pair<mgui_string, V*> pair = { key, new V(value) };
+
+        const int count = table[index].count();
+        mgui_list_node<mgui_pair<mgui_string, V*>>* node = table[index].first();
+        for (int i = 0; i < count; i++) {
+            if (node == nullptr) {
+                break;
+            }
+
+            if (node->obj.key == key) {
+                // overwrite member
+                node->obj.value = pair.value;
+                return;
+            }
+
+            node = node->next;
+        }
+
         table[index].add(pair);
+        counter_++;
     }
 
-    V get(const mgui_string key) {
+    V* get(const mgui_string key) {
         unsigned long index = djb2_hash(key.c_str());
         const int count = table[index].count();
 
-        mgui_list_node<mgui_pair<mgui_string, V>>* node = table[index].first();
+        mgui_list_node<mgui_pair<mgui_string, V*>>* node = table[index].first();
         for (int i = 0; i < count; i++) {
             if (node == nullptr) {
                 break;
@@ -865,14 +883,14 @@ public:
             node = node->next;
         }
 
-        return (V)nullptr;
+        return nullptr;
     }
 
     void remove(mgui_string key) {
         unsigned long index = djb2_hash(key.c_str());
         const int count = table[index].count();
 
-        mgui_list_node<mgui_pair<mgui_string, V>>* node = table[index].first();
+        mgui_list_node<mgui_pair<mgui_string, V*>>* node = table[index].first();
         for (int i = 0; i < count; i++) {
             if (node == nullptr) {
                 break;
@@ -880,6 +898,7 @@ public:
 
             if (node->obj.key == key) {
                 table[index].remove(node->obj);
+                counter_--;
                 break;
             }
 
@@ -891,7 +910,10 @@ public:
         for (int i = 0; i < HASH_TABLE_SIZE; i++) {
             table[i].clear();
         }
+        counter_ = 0;
     }
+
+    inline int count() const { return counter_; }
 
 private:
     inline unsigned long djb2_hash(const char* data) {
@@ -904,7 +926,8 @@ private:
         return hash % HASH_TABLE_SIZE;
     }
 
-    mgui_list<mgui_pair<mgui_string, V>> table[HASH_TABLE_SIZE];
+    mgui_list<mgui_pair<mgui_string, V*>> table[HASH_TABLE_SIZE];
+    int counter_;
 };
 
 class mgui {
@@ -2085,27 +2108,36 @@ private:
     uint16_t selected_index_;
 };
 
-class mgui_display_selector {
+class mgui_selector {
 public:
-    mgui_display_selector() = default;
-    ~mgui_display_selector() {
+    mgui_selector() {
+        current_ = nullptr;
+    }
+
+    ~mgui_selector() {
         display_.clear();
     }
 
-    void add(mgui_string title, mgui& view) {
-        display_.insert(title, view);
+    void add(mgui_string title, mgui* view) {
+        display_.insert(title, *view);
+        if (display_.count() == 1) {
+            current_ = view;
+        }
     }
 
     void remove(mgui_string title) {
         display_.remove(title);
     }
 
-    mgui select(mgui_string title) {
-        return display_.get(title);
+    void select(mgui_string title) {
+        current_= display_.get(title);
     }
+
+    const mgui* get_current() const { return current_; }
 
 private:
     mgui_string_map<mgui> display_;
+    mgui* current_;
 };
 
 #endif // MGUI_H

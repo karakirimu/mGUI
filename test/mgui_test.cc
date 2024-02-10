@@ -148,32 +148,32 @@ TEST(Map, string) {
     test.insert("abc", 'C');
     test.insert("abcd", 'D');
 
-    EXPECT_EQ(test.get("a"), 'A');
-    EXPECT_EQ(test.get("ab"), 'B');
-    EXPECT_EQ(test.get("abc"), 'C');
-    EXPECT_EQ(test.get("abcd"), 'D');
+    EXPECT_EQ(*test.get("a"), 'A');
+    EXPECT_EQ(*test.get("ab"), 'B');
+    EXPECT_EQ(*test.get("abc"), 'C');
+    EXPECT_EQ(*test.get("abcd"), 'D');
 
     test.remove("abc");
 
-    EXPECT_EQ(test.get("a"), 'A');
-    EXPECT_EQ(test.get("ab"), 'B');
-    EXPECT_EQ(test.get("abcd"), 'D');
+    EXPECT_EQ(*test.get("a"), 'A');
+    EXPECT_EQ(*test.get("ab"), 'B');
+    EXPECT_EQ(*test.get("abcd"), 'D');
 
     test.remove("a");
 
-    EXPECT_EQ(test.get("ab"), 'B');
-    EXPECT_EQ(test.get("abcd"), 'D');
+    EXPECT_EQ(*test.get("ab"), 'B');
+    EXPECT_EQ(*test.get("abcd"), 'D');
 
     test.remove("abcd");
 
-    EXPECT_EQ(test.get("ab"), 'B');
+    EXPECT_EQ(*test.get("ab"), 'B');
 
     test.remove("ab");
 
     test.remove("a");
 
     // No item
-    EXPECT_TRUE(test.get("a") == (char)nullptr);
+    EXPECT_TRUE(test.get("a") == nullptr);
 };
 
 typedef std::tuple<int, int, int> P_A3;
