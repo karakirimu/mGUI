@@ -27,6 +27,7 @@ enum mgui_draw_line_dir {
     Down
 };
 
+// List of object types that use drawing functions
 enum mgui_object_type {
     Rectangle,
     Circle,
@@ -411,6 +412,13 @@ public:
 
 private:
     
+    /**
+     * @brief drawing filled circle
+     *
+     * @param x0 center point of X
+     * @param y0 center point of Y
+     * @param r  radius
+     */
     inline void draw_circle_fill(int x0, int y0, int r) {
         int x = r;
         int y = 0;
@@ -523,6 +531,15 @@ private:
         }
     }
 
+    /**
+     * @brief
+     * Check whether the data for the specified image display position is turned on.
+     * TODO: Excessive idx calculation
+     * 
+     * @param x x position of image
+     * @param y y position of image
+     * @param value a value containing the bits of the specified image
+    */
     inline bool check_bit_on(int x, int y, uint8_t value) {
        uint8_t bit_idx = (1 << (7 - y % 8));
        bool on = (value & bit_idx) & bit_idx;
@@ -562,6 +579,11 @@ struct mgui_list_node {
 };
 
 template <typename T>
+/**
+ * @brief 
+ * A simple list class that can be used for various object types. 
+ * It is created to avoid using standard functions.
+ */
 class mgui_list {
  public:
   mgui_list() {
@@ -706,6 +728,11 @@ class mgui_list {
 };
 
 template <typename T>
+/**
+ * @brief 
+ * A simple stack class that can be used for various object types.
+ * It is created to avoid using standard functions.
+ */
 class mgui_stack {
 public:
     mgui_stack() {
@@ -732,12 +759,22 @@ public:
         return static_cast<T&&>(node->obj);
     }
 
+    /**
+     * @brief Check if number of elements is 0
+     * 
+     * @return true It has no elements
+     * @return false One or more elements exist.
+     */
     inline bool is_empty() const { return head_ == nullptr; }
 
 private:
     mgui_list_node<T>* head_;
 };
 
+/**
+ * @brief 
+ * Basic string management class. Created to avoid implementing standard functions. 
+ */
 class mgui_string {
 public:
     mgui_string() {
@@ -786,11 +823,28 @@ public:
         return memcmp(str_, str, str_length_) == 0;
     }
 
+    /**
+     * @brief Returns the first pointer of the string.
+     * 
+     * @return const char* 
+     */
     const char* c_str() const { return str_; }
 
+    /**
+     * @brief returns the number of characters set.
+     * 
+     * @return int 
+     */
     int length() const { return str_length_; }
 
 private:
+
+    /**
+     * @brief 
+     * Get the number of characters received, allocate memory and copy them there.
+     * 
+     * @param str char[]
+     */
     inline void build(const char* str) {
         str_length_ = strlen(str);
         str_ = new char[str_length_ + 1];
@@ -798,6 +852,10 @@ private:
         str_[str_length_] = '\0';
     }
 
+    /**
+     * @brief 
+     * Initialize string settings and memory release.
+     */
     inline void clear() {
         str_ = nullptr;
         str_length_ = 0;
@@ -806,6 +864,13 @@ private:
         }
     }
 
+    /**
+     * @brief 
+     * Count the number of characters
+     * 
+     * @param str the first pointer of string.
+     * @return Number of characters counted.
+     */
     inline int strlen(const char* str) const {
         int len = 0;
         while (*str != '\0') {
@@ -814,7 +879,6 @@ private:
         }
         return len;
     }
-
 
     char* str_;
     int str_length_;
@@ -930,6 +994,10 @@ private:
     int counter_;
 };
 
+/**
+ * @brief 
+ * 
+ */
 class mgui {
 public:
     /**
