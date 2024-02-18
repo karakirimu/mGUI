@@ -641,6 +641,11 @@ class mgui_list {
       return *this;
   }
 
+  /**
+   * @brief Appends a new item to the end of a linked list.
+   * 
+   * @param item A new item to append. The objects being set must be comparable.
+   */
   void add(const T &item) {
     mgui_list_node<T>* node = new mgui_list_node<T>();
     node->obj = item;
@@ -655,6 +660,12 @@ class mgui_list {
     counter++;
   }
 
+  /**
+   * @brief Get the selected index object
+   * 
+   * @param index selected index
+   * @return const T selected object or nullptr
+   */
   const T get(const int index) {
     mgui_list_node<T>* node = head;
     for (int i = 0; i < index; i++) {
@@ -663,6 +674,11 @@ class mgui_list {
     return node->obj;
   }
 
+  /**
+   * @brief Get the list node object. Use when you want to scan from a specific index.
+   * @param index selected index
+   * @return mgui_list_node<T>* List node for selected index or nullptr.
+   */
   mgui_list_node<T>* get_node(const int index) {
       mgui_list_node<T>* node = head;
       for (int i = 0; i < index; i++) {
@@ -671,6 +687,11 @@ class mgui_list {
       return node;
   }
 
+  /**
+   * @brief deletes the specified object
+   * 
+   * @param item Comparable objects
+   */
   void remove(const T &item) {
     mgui_list_node<T>* current_node = head;
     mgui_list_node<T>* prev_node = nullptr;
@@ -711,14 +732,34 @@ class mgui_list {
     counter--;
   }
 
+  /**
+   * @brief Deletes all item.
+   */
   void clear() {
     while(counter > 0){
         remove(head->obj);
     }
   }
 
+  /**
+   * @brief Get the item count
+   * 
+   * @return int item count
+   */
   inline int count() const { return counter; }
+
+  /**
+   * @brief It returns first node
+   * 
+   * @return mgui_list_node<T>* first list node
+   */
   inline mgui_list_node<T>* first() { return head; }
+
+  /**
+   * @brief It returns last node
+   * 
+   * @return mgui_list_node<T>* last list node
+   */
   inline mgui_list_node<T>* last() { return tail; }
 
  private:
@@ -745,6 +786,11 @@ public:
         }
     }
 
+    /**
+     * @brief Add item to the end of stack.
+     * 
+     * @param item object
+     */
     void push(const T &item) {
         mgui_list_node<T>* node = new mgui_list_node<T>();
         node->obj = item;
@@ -752,6 +798,11 @@ public:
         head_ = node;
     }
 
+    /**
+     * @brief Take the element from the beginning and move the element reference
+     * 
+     * @return T first object reference
+     */
     T pop() {
         mgui_list_node<T>* node = head_;
         head_ = node->next;
@@ -773,7 +824,8 @@ private:
 
 /**
  * @brief 
- * Basic string management class. Created to avoid implementing standard functions. 
+ * Basic string management class.
+ * Created to avoid implementing standard functions. 
  */
 class mgui_string {
 public:
@@ -885,6 +937,10 @@ private:
 };
 
 template <typename K, typename V>
+/**
+ * @brief 
+ * A simple struct containing key and value
+ */
 class mgui_pair { 
 public:
     bool operator==(const mgui_pair& pair) {
@@ -896,6 +952,14 @@ public:
 };
 
 template <typename V>
+/**
+ * @brief 
+ * A map with built-in strings as keys. 
+ * The main purpose was to manage the created mgui objects by selecting them.
+ * Originally, I was planning to create a general map, but since it was
+ * necessary to divide the template into strings and strings, 
+ * I decided not to create one.
+ */
 class mgui_string_map {
 public:
     mgui_string_map() {
@@ -905,6 +969,14 @@ public:
         clear();
     }
 
+    /**
+     * @brief
+     * Adds the specified key and value.
+     * If the key exists, the value will be overwritten.
+     * 
+     * @param key key string
+     * @param value Object associated with key
+     */
     void insert(const mgui_string key, V value) {
         unsigned long index = djb2_hash(key.c_str());
 
@@ -930,6 +1002,12 @@ public:
         counter_++;
     }
 
+    /**
+     * @brief Get the element corresponding to the set key.
+     * 
+     * @param key Key corresponding to the value to retrieve.
+     * @return V* A pointer to the element corresponding to the assigned key. If it does not exist, return nullptr.
+     */
     V* get(const mgui_string key) {
         unsigned long index = djb2_hash(key.c_str());
         const int count = table[index].count();
@@ -950,6 +1028,11 @@ public:
         return nullptr;
     }
 
+    /**
+     * @brief Delete the item that exists with the set key.
+     * 
+     * @param key key string
+     */
     void remove(mgui_string key) {
         unsigned long index = djb2_hash(key.c_str());
         const int count = table[index].count();
@@ -970,6 +1053,10 @@ public:
         }
     }
 
+    /**
+     * @brief
+     * Delete all contents of map
+     */
     void clear() {
         for (int i = 0; i < HASH_TABLE_SIZE; i++) {
             table[i].clear();
@@ -977,9 +1064,21 @@ public:
         counter_ = 0;
     }
 
+    /**
+     * @brief Get the item count
+     * 
+     * @return int item count
+     */
     inline int count() const { return counter_; }
 
 private:
+
+    /**
+     * @brief DJB2 hash calculation
+     * 
+     * @param data Value to calculate hash
+     * @return unsigned long calculation result divided by HASH_TABLE_SIZE
+     */
     inline unsigned long djb2_hash(const char* data) {
         unsigned long hash = 5381;
         int c;
@@ -996,15 +1095,15 @@ private:
 
 /**
  * @brief 
- * 
+ * Adds/deletes/updates drawing objects and provides drawing status.
  */
 class mgui {
 public:
     /**
      * @brief Construct a new mgui draw object
      *
-     * @param width Target LCD width
-     * @param height Target LCD height
+     * @param width Target screen width
+     * @param height Target screen height
      */
     explicit mgui(const uint8_t width, const uint8_t height) {
         buffer_size = width * (height >> 3);
@@ -1043,6 +1142,10 @@ public:
         list.clear();
     }
 
+    /**
+     * @brief 
+     * Update screen drawing
+     */
     inline void update_lcd() {
         mgui_list_node<mgui_object*>* node = list.first();
 
@@ -1056,6 +1159,11 @@ public:
         }
     }
 
+    /**
+     * @brief Get the buffer for the set screen size
+     * 
+     * @return uint8_t* A pointer to a screen buffer.
+     */
     inline uint8_t *lcd() { return lcd_buffer; }
 
 private:
