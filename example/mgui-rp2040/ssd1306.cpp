@@ -6,7 +6,7 @@
 
 #include "ssd1306.h"
 
-SSD1306::SSD1306(){
+SSD1306::SSD1306(uint8_t width, uint8_t number_of_page){
     // useful information for picotool
     bi_decl(bi_2pins_with_func(PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C));
     bi_decl(bi_program_description("SSD1306 OLED driver I2C example for the Raspberry Pi Pico"));
@@ -21,22 +21,16 @@ SSD1306::SSD1306(){
     gpio_pull_up(I2C_SDA);
     gpio_pull_up(I2C_SCL);
 
-    // initialize font buffer
-    // memset(reversed, 0, sizeof(font));
+    // update rendering area
+    render_area_.start_page = 0;
+    render_area_.end_page = number_of_page - 1;
+    render_area_.start_col = 0;
+    render_area_.end_col = width - 1;
+    calc_render_area_buflen(&render_area_);
 
     // run through the complete initialization process
     init();
 
-    // // Initialize render area for entire frame (SSD1306_WIDTH pixels by SSD1306_NUM_PAGES pages)
-    // frame_area.start_col = 0;
-    // frame_area.end_col = SSD1306_WIDTH - 1;
-    // frame_area.start_page = 0;
-    // frame_area.end_page = SSD1306_NUM_PAGES - 1;
-    // calc_render_area_buflen(&frame_area);
-
-    // // zero the entire display
-    // memset(draw_buf, 0, SSD1306_BUF_LEN);
-    // renderAll();
 }
 
 void SSD1306::init() {
@@ -106,26 +100,22 @@ void SSD1306::scroll(bool on) {
 
 void SSD1306::invert_display(bool on)
 {
-    SSD1306_send_cmd(on? SSD1306_SET_INV_DISP : SSD1306_SET_NORM_DISP);
+    send_cmd(on? SSD1306_SET_INV_DISP : SSD1306_SET_NORM_DISP);
 }
 
-// void SSD1306::renderAll() {
-//     render(draw_buf, &frame_area);
-// }
-
-void SSD1306::render(uint8_t *buf, struct render_area *area) {
+void SSD1306::render(uint8_t *buf) {
     // update a portion of the display with a render area
     uint8_t cmds[] = {
         SSD1306_SET_COL_ADDR,
-        area->start_col,
-        area->end_col,
+        render_area_.start_col,
+        render_area_.end_col,
         SSD1306_SET_PAGE_ADDR,
-        area->start_page,
-        area->end_page
+        render_area_.start_page,
+        render_area_.end_page
     };
     
     SSD1306_send_cmd_list(cmds, count_of(cmds));
-    SSD1306_send_buf(buf, area->buflen);
+    SSD1306_send_buf(buf, render_area_.buflen);
 }
 
 uint8_t SSD1306::reverse(uint8_t b) {
@@ -135,13 +125,7 @@ uint8_t SSD1306::reverse(uint8_t b) {
     return b;
 }
 
-// void SSD1306::FillReversedCache() {
-//     // calculate and cache a reversed version of fhe font, because I defined it upside down...doh!
-//     for (int i=0;i<sizeof(font);i++)
-//         reversed[i] = reverse(font[i]);
-// }
-
-void SSD1306::SSD1306_send_cmd(uint8_t cmd) {
+void SSD1306::send_cmd(uint8_t cmd) {
     // I2C write process expects a control byte followed by data
     // this "data" can be a command or data to follow up a command
     // Co = 1, D/C = 0 => the driver expects a command
@@ -158,7 +142,7 @@ void SSD1306::calc_render_area_buflen(struct render_area *area) {
 
 void SSD1306::SSD1306_send_cmd_list(uint8_t *buf, int num) {
     for (int i=0;i<num;i++)
-        SSD1306_send_cmd(buf[i]);
+        send_cmd(buf[i]);
 }
 
 void SSD1306::SSD1306_send_buf(uint8_t buf[], int buflen) {

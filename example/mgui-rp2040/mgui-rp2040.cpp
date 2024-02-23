@@ -9,9 +9,13 @@
 
 #define BUTTON_GPIO 15
 
+// Base pin to connect the A phase of the encoder.
+// The B phase must be connected to the next pin
+#define ENCODER_FIRST_GPIO 18
+
 const uint sm = 0;
 
-static void button_init() {
+static void button_gpio_init() {
     gpio_init(BUTTON_GPIO);
     gpio_set_dir(BUTTON_GPIO, GPIO_IN);
     // We are using the button to pull down to 0v when pressed, so ensure that when
@@ -41,62 +45,48 @@ static void update_selection(mgui_ui_group *group, int delta) {
     group->set_on_select_next(delta > 0);
 }
 
-void splash(mgui *gui, SSD1306 *disp, render_area *update_area) {
+void clear(SSD1306 *disp) {
+    mgui gui(SSD1306_WIDTH, SSD1306_HEIGHT);
+    disp->render(gui.lcd());
+}
+
+void splash(SSD1306 *disp) {
+    mgui gui(SSD1306_WIDTH, SSD1306_HEIGHT);
     font_16x8 font;
     mgui_text text(&font, "mGUI Test", 16, 24);
 
     // show splash
-    gui->add((mgui_object *)&text);
-    gui->update_lcd();
-    disp->render(gui->lcd(), update_area);
+    gui.add((mgui_object *)&text);
+    gui.update_lcd();
+    disp->render(gui.lcd());
     sleep_ms(5000);
 
     // clear display
-    gui->clear();
-    gui->update_lcd();
-    disp->render(gui->lcd(), update_area);
-    return;
+    gui.clear();
+    gui.update_lcd();
+    disp->render(gui.lcd());
 }
 
 int main()
 {
     stdio_init_all();
 
-// #if !defined(i2c_default) || !defined(PICO_DEFAULT_I2C_SDA_PIN) || !defined(PICO_DEFAULT_I2C_SCL_PIN)
-// #warning i2c / SSD1306_i2d example requires a board with I2C pins
-    // puts("Default I2C pins were not defined");
-// #else
-
-    // Base pin to connect the A phase of the encoder.
-    // The B phase must be connected to the next pin
-    const uint PIN_AB = 18;
-
     // we don't really need to keep the offset, as this program must be loaded
     // at offset 10000
     pio_add_program(pio0, &quadrature_encoder_program);
-    quadrature_encoder_program_init(pio0, sm, PIN_AB, 10000);
+    quadrature_encoder_program_init(pio0, sm, ENCODER_FIRST_GPIO, 10000);
 
-    button_init();
+    button_gpio_init();
 
-    SSD1306 disp;
+    SSD1306 disp(SSD1306_WIDTH, SSD1306_NUM_PAGES);
+
+    // clear screen
+    clear(&disp);
+
+    // show splash
+    splash(&disp);
+
     mgui gui(SSD1306_WIDTH, SSD1306_HEIGHT);
-
-    render_area frame_area = {0, SSD1306_WIDTH - 1, 0, SSD1306_NUM_PAGES - 1};
-    disp.calc_render_area_buflen(&frame_area);
-
-    disp.render(gui.lcd(), &frame_area);
-
-    // intro sequence: flash the screen 3 times
-    // for (int i = 0; i < 3; i++) {
-    //     disp.SSD1306_send_cmd(SSD1306_SET_ALL_ON);    // Set all pixels on
-    //     sleep_ms(500);
-    //     disp.SSD1306_send_cmd(SSD1306_SET_ENTIRE_ON); // go back to following RAM for pixel state
-    //     sleep_ms(500);
-    // }
-
-    // show splash at first
-    splash(&gui, &disp, &frame_area);
-
     // mgui_circle Circle;
     // Circle.set_x(20);
     // Circle.set_y(20);
@@ -158,7 +148,7 @@ int main()
     gui.update_lcd();
 
     while(true){
-        disp.render(gui.lcd(), &frame_area);
+        disp.render(gui.lcd());
 
         // set on encoder
         // button.set_on_press(update_quadrature_encoder(pio0) != 0);
