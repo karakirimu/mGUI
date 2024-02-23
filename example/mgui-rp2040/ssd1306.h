@@ -90,39 +90,34 @@ namespace Commands {
 #define SSD1306_NUM_PAGES           (SSD1306_HEIGHT / SSD1306_PAGE_HEIGHT)
 #define SSD1306_BUF_LEN             (SSD1306_NUM_PAGES * SSD1306_WIDTH)
 
-struct render_area {
+typedef struct render_area {
     uint8_t start_col;
     uint8_t end_col;
     uint8_t start_page;
     uint8_t end_page;
 
     int buflen;
-};
+} render_area;
 
 class SSD1306 {
 public:
-    SSD1306();
+    SSD1306(uint8_t width, uint8_t number_of_page);
     ~SSD1306(){}
 
-    // inline uint8_t *GetBuffer() {return draw_buf;}
-    void init();
     void scroll(bool on);
     void invert_display(bool on);
-    // void renderAll();
-    void render(uint8_t *buf, struct render_area *area);
-
-    void SSD1306_send_cmd(uint8_t cmd);
-
-    void calc_render_area_buflen(struct render_area *area);
+    void render(uint8_t *buf);
+    void send_cmd(uint8_t cmd);
 
 private:
-    // void FillReversedCache();
+    void init();
+
     uint8_t reverse(uint8_t b);
 
     void SSD1306_send_cmd_list(uint8_t *buf, int num);
     void SSD1306_send_buf(uint8_t buf[], int buflen);
 
-    // uint8_t draw_buf[SSD1306_BUF_LEN];
-    // struct render_area frame_area;
-    // uint8_t reversed[sizeof(font)];
+    void calc_render_area_buflen(struct render_area *area);
+
+    render_area render_area_;
 };
