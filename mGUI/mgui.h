@@ -43,6 +43,37 @@ enum mgui_object_type {
 
 /**
  * @brief
+ * Types of parameters entered using GPIO or other communication methods
+ */
+enum mgui_input_type {
+    /**
+     * @brief 
+     * Push switches, variable resistors, rotary encoders, etc. 
+     * that can represent input states within a single int value.
+     */
+    Single,
+};
+
+/**
+ * @brief
+ * Structure for storing the result of input value acquisition 
+ * and passing it to the drawing section.
+ */
+struct mgui_input_state {
+
+    /**
+     * @brief Type of input set up
+     */
+    mgui_input_type type;
+
+    /**
+     * @brief Current input value
+     */
+    int value_1;
+};
+
+/**
+ * @brief
  * This class is a common class that manages font resources (buffers)
  * with fixed width and height.
  * When using this class, define a class that inherits from this class
@@ -568,8 +599,9 @@ public:
      * @brief 
      * Set up drawing process for objects in inherited classes
      * @param draw Objects that provide a method for drawing
+     * @param input_state Current input state
      */
-    virtual void update(mgui_draw* draw) = 0;
+    virtual void update(mgui_draw* draw, mgui_input_state *input_state) = 0;
 };
 
 template <typename O>
@@ -1094,6 +1126,84 @@ private:
 };
 
 /**
+ * @brief
+ * - Register and update device inputs together.
+ */
+class mgui_input {
+public:
+    mgui_input() {
+        input_data_ = nullptr;
+    }
+    ~mgui_input() {
+        clear_data();
+    }
+
+    /**
+     * @brief Add callbacks to update input status.
+     * 
+     * @param input_read_function 
+     * A Function to execute a read process of SDK-specific inputs using GPIO or
+     * other communication methods and store a value reflecting the result of
+     * the read process in the argument mgui_input_state.
+     */
+    inline void add(void (*input_read_function)(mgui_input_state *result)) {
+        function_list_.add(input_read_function);
+        clear_data();
+        input_data_ = new mgui_input_state[function_list_.count()];
+    }
+
+    /**
+     * @brief Deletes a callback that has been set.
+     * 
+     * @param index 
+     * Setup number of the callback. Since callbacks are stored in the order 
+     * in which add is executed, the appropriate index depends on the order 
+     * in which the callbacks are set. The setting order starts from 0.
+     */
+    inline void remove(int index) {
+
+        mgui_list_node<void (*)(mgui_input_state* result)>* node = function_list_.first();
+
+        for (int i = 0; i < index; i++) {
+            node = node->next;
+        }
+
+        function_list_.remove(node->obj);
+        clear_data();
+        input_data_ = new mgui_input_state[function_list_.count()];
+    }
+
+    /**
+     * @brief 
+     * All registered callbacks are executed. mgui_input_type is initially set to Single.
+     */
+    inline void update() {
+        mgui_list_node<void (*)(mgui_input_state* result)>* node = function_list_.first();
+
+        int counter = 0;
+        while (node != nullptr) {
+            node->obj(&input_data_[counter]);
+            node = node->next;
+            counter++;
+        }
+    }
+
+    mgui_input_state* get_input_result() { return input_data_; }
+
+private:
+    void clear_data() {
+        if (input_data_) {
+            delete[] input_data_;
+            input_data_ = nullptr;
+        }
+    }
+
+    mgui_list<void (*)(mgui_input_state* result)> function_list_;
+    mgui_input_state *input_data_;
+};
+
+
+/**
  * @brief 
  * Adds/deletes/updates drawing objects and provides drawing status.
  */
@@ -1109,11 +1219,12 @@ public:
         buffer_size = width * (height >> 3);
         lcd_buffer = new uint8_t[buffer_size]();
         memset(lcd_buffer, 0, buffer_size);
-        draw = new mgui_draw(width, height, lcd_buffer);
+        draw_ = new mgui_draw(width, height, lcd_buffer);
+        input_ = nullptr;
     }
 
     ~mgui() {
-        delete draw;
+        delete draw_;
         delete[] lcd_buffer;
     }
 
@@ -1128,6 +1239,10 @@ public:
         }
 
         return true;
+    }
+
+    inline void set_input(mgui_input* input){
+        input_ = input;
     }
 
     inline void add(mgui_object *item){
@@ -1147,6 +1262,13 @@ public:
      * Update screen drawing
      */
     inline void update_lcd() {
+        // update input state
+        mgui_input_state* state = nullptr;
+        if(input_ != nullptr){
+            input_->update();
+            state = input_->get_input_result();
+        }
+
         mgui_list_node<mgui_object*>* node = list.first();
 
         // clear buffer
@@ -1154,7 +1276,7 @@ public:
 
         // set settings
         while(node != nullptr){
-            node->obj->update(draw);
+            node->obj->update(draw_, state);
             node = node->next;
         }
     }
@@ -1167,7 +1289,8 @@ public:
     inline uint8_t *lcd() { return lcd_buffer; }
 
 private:
-    mgui_draw* draw;
+    mgui_draw* draw_;
+    mgui_input* input_;
     mgui_list<mgui_object*> list;
     uint8_t* lcd_buffer;
     int buffer_size;
@@ -1305,7 +1428,7 @@ public:
     inline bool invert() const { return invert_; }
     inline void set_invert(bool invert) { invert_ = invert; }
 
-    void update(mgui_draw* draw) {
+    void update(mgui_draw* draw, mgui_input_state*) {
         if(invert_) {
             draw->draw_pixel(x_, y_, !on_);
             return;
@@ -1353,7 +1476,7 @@ public:
     inline uint8_t invert() const { return invert_; }
     inline void set_invert(uint8_t invert) { invert_ = invert; }
 
-    void update(mgui_draw* draw) {
+    void update(mgui_draw* draw, mgui_input_state*) {
         draw->draw_line(x0_, y0_, x1_, y1_, !invert_);
     }
 
@@ -1393,7 +1516,7 @@ public:
     inline uint8_t fill() const { return fill_; }
     inline void set_fill(uint8_t fill) { fill_ = fill; }
 
-    void update(mgui_draw* draw) {
+    void update(mgui_draw* draw, mgui_input_state*) {
         draw->draw_circle(x_, y_, r_, fill_);
     }
 
@@ -1423,7 +1546,7 @@ public:
 
     mgui_object_type type() const { return mgui_object_type::Rectangle; }
 
-    void update(mgui_draw* draw) {
+    void update(mgui_draw* draw, mgui_input_state*) {
 
         if (r_ > 0) {
             draw->draw_rectangle_rounded(
@@ -1505,7 +1628,7 @@ public:
     inline uint8_t invert() const { return invert_; }
     inline void set_invert(uint8_t invert) { invert_ = invert; }
 
-    void update(mgui_draw* draw) {
+    void update(mgui_draw* draw, mgui_input_state*) {
         draw->draw_triangle(x0_, y0_, x1_, y1_, x2_, y2_, invert_);
     }
 
@@ -1548,7 +1671,7 @@ public:
 
     mgui_object_type type() const { return mgui_object_type::Text; }
     
-    void update(mgui_draw* draw) {
+    void update(mgui_draw* draw, mgui_input_state*) {
         for(int i = 0; i < text_property_->get_text_length(); i++) {
             int x0 = x_ + font()->font_width() * i;
             draw->draw_char(font(), x0, y_, text_property_->get_text_index(i), invert_);
@@ -1663,22 +1786,27 @@ class mgui_button : public mgui_core_ui {
          text_rel_x_ = 0;
          text_rel_y_ = 0;
          text_ = nullptr;
+         input_event_callback_ = nullptr;
 
      };
      ~mgui_button(){};
 
      mgui_object_type type() const { return mgui_object_type::Button; };
 
-     void update(mgui_draw* draw) {
-        bool is_filled = get_on_selected()? !get_on_press() : get_on_press();
-
-        rect_.set_fill(is_filled);
-        rect_.update(draw);
-
-        if (text_) {
-            text_->set_invert(is_filled);
-            text_->update(draw);
-        }
+     void update(mgui_draw* draw, mgui_input_state *input) {
+         if (input_event_callback_) {
+             input_event_callback_(this, input);
+         }
+         
+         bool is_filled = get_on_selected()? !get_on_press() : get_on_press();
+         
+         rect_.set_fill(is_filled);
+         rect_.update(draw, input);
+         
+         if (text_) {
+             text_->set_invert(is_filled);
+             text_->update(draw, input);
+         }
      };
 
      inline mgui_text* text() const { return text_; }
@@ -1687,6 +1815,20 @@ class mgui_button : public mgui_core_ui {
          text_rel_x_ = text_rel_x;
          text_rel_y_ = text_rel_y;
          update_property();
+     }
+
+     /**
+      * @brief Set the input event handler object
+      * 
+      * @param event_callback 
+      * Implement functions to change the state of the gui and operate other non-gui functions
+      * using functions set in mgui_core_ui using the value of mgui_input_state
+      * (the result of input reading set in mgui_input). 
+      * The set function is called each time before drawing is updated.
+      */
+     inline void set_input_event_handler(
+         void (*event_callback)(const mgui_core_ui* behavior, const mgui_input_state state[])) {
+         input_event_callback_ = event_callback;
      }
 
      inline void set_padding(uint16_t left, uint16_t up, uint16_t right, uint16_t down) {
@@ -1723,6 +1865,7 @@ class mgui_button : public mgui_core_ui {
          text_->set_y(ry + text_rel_y_ + padding_.up());
      }
 
+     void (*input_event_callback_)(const mgui_core_ui* behavior, const mgui_input_state state[]);
      mgui_padding_property padding_;
      mgui_text *text_;
      uint16_t text_rel_x_;
@@ -1766,6 +1909,7 @@ public:
         previous_on_press_ = false;
         item_type_ = mgui_menu_item_type::None;
         rect_ = mgui_rectangle();
+        input_event_callback_ = nullptr;
     }
 
     virtual ~mgui_menu_item(){}
@@ -1774,16 +1918,20 @@ public:
 
     mgui_menu_item_type item_type() const { return item_type_; }
 
-    void update(mgui_draw* draw) {
+    void update(mgui_draw* draw, mgui_input_state* input) {
+        if (input_event_callback_) {
+            input_event_callback_(this, input);
+        }
+
         bool focus = get_on_selected()? !get_on_press() : get_on_press();
 
         if (focus) {
-            rect_.update(draw);
+            rect_.update(draw, input);
         }
  
         if (text_) {
             text_->set_invert(focus);
-            text_->update(draw);
+            text_->update(draw, input);
         }
 
         switch (item_type_) {
@@ -1792,13 +1940,13 @@ public:
                 is_checked_ = !is_checked_;
             }
             previous_on_press_ = get_on_press();
-            draw_check_box(draw, focus);
+            draw_check_box(draw, input, focus);
             break;
         case mgui_menu_item_type::Menu:
-            draw_menu_guide(draw, focus);
+            draw_menu_guide(draw, input, focus);
             break;
         case mgui_menu_item_type::ReturnToParentMenu:
-            draw_return_menu_guide(draw, focus);
+            draw_return_menu_guide(draw, input, focus);
             break;
         default:
             break;
@@ -1884,6 +2032,20 @@ public:
         text_rel_y_ = text_rel_y;
     }
 
+    /**
+     * @brief Set the input event handler object
+     *
+     * @param event_callback
+     * Implement functions to change the state of the gui and operate other non-gui functions
+     * using functions set in mgui_core_ui using the value of mgui_input_state
+     * (the result of input reading set in mgui_input).
+     * The set function is called each time before drawing is updated.
+     */
+    inline void set_input_event_handler(
+        void (*event_callback)(const mgui_core_ui* behavior, const mgui_input_state state[])) {
+        input_event_callback_ = event_callback;
+    }
+
     inline void set_menu(mgui_menu_property* menu) { 
         child_menu_ = menu;
         item_type_ = mgui_menu_item_type::Menu;
@@ -1904,33 +2066,34 @@ public:
 
 private:
 
-    inline void draw_check_box(mgui_draw* draw, bool invert) {
+    inline void draw_check_box(mgui_draw* draw, mgui_input_state *input, bool invert) {
         check_rect_outer.set_invert(invert);
-        check_rect_outer.update(draw);
+        check_rect_outer.update(draw, input);
         if (is_checked_) {
             check_rect_inner.set_invert(invert);
-            check_rect_inner.update(draw);
+            check_rect_inner.update(draw, input);
         }
     }
 
-    inline void draw_menu_guide(mgui_draw* draw, bool invert) {
+    inline void draw_menu_guide(mgui_draw* draw, mgui_input_state* input, bool invert) {
         if (child_menu_) {
             menu_right_arrow_up.set_invert(invert);
             menu_right_arrow_down.set_invert(invert);
-            menu_right_arrow_up.update(draw);
-            menu_right_arrow_down.update(draw);
+            menu_right_arrow_up.update(draw, input);
+            menu_right_arrow_down.update(draw, input);
         }
     }
 
-    inline void draw_return_menu_guide(mgui_draw* draw, bool invert) {
+    inline void draw_return_menu_guide(mgui_draw* draw, mgui_input_state* input, bool invert) {
         if (is_return_menu_) {
             menu_left_arrow_up.set_invert(invert);
             menu_left_arrow_down.set_invert(invert);
-            menu_left_arrow_up.update(draw);
-            menu_left_arrow_down.update(draw);
+            menu_left_arrow_up.update(draw, input);
+            menu_left_arrow_down.update(draw, input);
         }
     }
 
+    void (*input_event_callback_)(const mgui_core_ui* behavior, const mgui_input_state state[]);
     bool previous_on_press_;
     bool is_checked_;
     bool is_return_menu_;
@@ -1968,14 +2131,14 @@ public:
     }
 
     mgui_object_type type() const { return mgui_object_type::Menu; }
-    void update(mgui_draw* draw) {       
+    void update(mgui_draw* draw, mgui_input_state* input) {
         mgui_list_node<mgui_menu_item*>* node = item_first_node_;
         for (int i = 0; i < item_count_; i++) {
             if (node == nullptr) {
                 break;
             }
             node->obj->_set_draw_position(i, item_count_, window_width_, window_height_);
-            node->obj->update(draw);
+            node->obj->update(draw, input);
             node = node->next;
         }
     }
@@ -2163,10 +2326,10 @@ public:
 
     mgui_object_type type() const { return mgui_object_type::UiGroup; }
 
-    void update(mgui_draw* draw) {
+    void update(mgui_draw* draw, mgui_input_state* input) {
         mgui_list_node<mgui_core_ui*>* node = list->first();
         while (node != nullptr) {
-            node->obj->update(draw);
+            node->obj->update(draw, input);
             node = node->next;
         }
     }
