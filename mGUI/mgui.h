@@ -72,6 +72,540 @@ struct mgui_input_state {
     int value_1;
 };
 
+template <typename O>
+struct mgui_list_node {
+    O obj;
+    mgui_list_node* next = nullptr;
+};
+
+template <typename T>
+/**
+ * @brief
+ * A simple list class that can be used for various object types.
+ * It is created to avoid using standard functions.
+ */
+class mgui_list {
+public:
+    mgui_list() {
+        head = nullptr;
+        tail = nullptr;
+        counter = 0;
+    }
+
+    mgui_list(const mgui_list& other) {
+        head = nullptr;
+        tail = nullptr;
+        counter = 0;
+
+        for (mgui_list_node<T>* node = other.head; node != nullptr; node = node->next) {
+            add(node->obj);
+        }
+    }
+
+    mgui_list(mgui_list&& other) noexcept {
+        head = other.head;
+        tail = other.tail;
+        counter = other.counter;
+
+        other.head = nullptr;
+        other.tail = nullptr;
+        other.counter = 0;
+    }
+
+    ~mgui_list() {
+        clear();
+    }
+
+    mgui_list& operator=(const mgui_list& other) {
+        if (this != &other) {
+            clear();
+            for (mgui_list_node<T>* node = other.head; node != nullptr; node = node->next) {
+                add(node->obj);
+            }
+        }
+        return *this;
+    }
+
+    mgui_list& operator=(mgui_list&& other) noexcept {
+        if (this != &other) {
+            clear();
+
+            head = other.head;
+            tail = other.tail;
+            counter = other.counter;
+
+            other.head = nullptr;
+            other.tail = nullptr;
+            other.counter = 0;
+        }
+        return *this;
+    }
+
+    /**
+     * @brief Appends a new item to the end of a linked list.
+     *
+     * @param item A new item to append. The objects being set must be comparable.
+     */
+    void add(const T& item) {
+        mgui_list_node<T>* node = new mgui_list_node<T>();
+        node->obj = item;
+        node->next = nullptr;
+
+        if (head == nullptr) {
+            head = node;
+        }
+        else {
+            tail->next = node;
+        }
+        tail = node;
+        counter++;
+    }
+
+    /**
+     * @brief Get the selected index object
+     *
+     * @param index selected index
+     * @return const T selected object or nullptr
+     */
+    const T get(const int index) {
+        mgui_list_node<T>* node = head;
+        for (int i = 0; i < index; i++) {
+            node = node->next;
+        }
+        return node->obj;
+    }
+
+    /**
+     * @brief Get the list node object. Use when you want to scan from a specific index.
+     * @param index selected index
+     * @return mgui_list_node<T>* List node for selected index or nullptr.
+     */
+    mgui_list_node<T>* get_node(const int index) {
+        mgui_list_node<T>* node = head;
+        for (int i = 0; i < index; i++) {
+            node = node->next;
+        }
+        return node;
+    }
+
+    /**
+     * @brief deletes the specified object
+     *
+     * @param item Comparable objects
+     */
+    void remove(const T& item) {
+        mgui_list_node<T>* current_node = head;
+        mgui_list_node<T>* prev_node = nullptr;
+
+        while (current_node != nullptr)
+        {
+            if (current_node->obj == item) {
+                break;
+            }
+            prev_node = current_node;
+            current_node = current_node->next;
+        }
+
+        if (current_node == nullptr) {
+            // No item found
+            return;
+        }
+
+        if (prev_node == nullptr) {
+            // First item removed
+            head = current_node->next;
+
+            if (head == nullptr) {
+                // No item listed
+                tail = nullptr;
+            }
+
+        }
+        else {
+            // Other
+            prev_node->next = current_node->next;
+
+            if (current_node->next == nullptr) {
+                // Last item removed
+                tail = prev_node;
+            }
+        }
+        delete current_node;
+        counter--;
+    }
+
+    /**
+     * @brief Deletes all item.
+     */
+    void clear() {
+        while (counter > 0) {
+            remove(head->obj);
+        }
+    }
+
+    /**
+     * @brief Get the item count
+     *
+     * @return int item count
+     */
+    inline int count() const { return counter; }
+
+    /**
+     * @brief It returns first node
+     *
+     * @return mgui_list_node<T>* first list node
+     */
+    inline mgui_list_node<T>* first() { return head; }
+
+    /**
+     * @brief It returns last node
+     *
+     * @return mgui_list_node<T>* last list node
+     */
+    inline mgui_list_node<T>* last() { return tail; }
+
+private:
+    mgui_list_node<T>* head;
+    mgui_list_node<T>* tail;
+    int counter;
+};
+
+template <typename T>
+/**
+ * @brief
+ * A simple stack class that can be used for various object types.
+ * It is created to avoid using standard functions.
+ */
+class mgui_stack {
+public:
+    mgui_stack() {
+        head_ = nullptr;
+    }
+
+    ~mgui_stack() {
+        while (head_ != nullptr) {
+            pop();
+        }
+    }
+
+    /**
+     * @brief Add item to the end of stack.
+     *
+     * @param item object
+     */
+    void push(const T& item) {
+        mgui_list_node<T>* node = new mgui_list_node<T>();
+        node->obj = item;
+        node->next = head_;
+        head_ = node;
+    }
+
+    /**
+     * @brief Take the element from the beginning and move the element reference
+     *
+     * @return T first object reference
+     */
+    T pop() {
+        mgui_list_node<T>* node = head_;
+        head_ = node->next;
+
+        return static_cast<T&&>(node->obj);
+    }
+
+    /**
+     * @brief Check if number of elements is 0
+     *
+     * @return true It has no elements
+     * @return false One or more elements exist.
+     */
+    inline bool is_empty() const { return head_ == nullptr; }
+
+private:
+    mgui_list_node<T>* head_;
+};
+
+/**
+ * @brief
+ * Basic string management class.
+ * Created to avoid implementing standard functions.
+ */
+class mgui_string {
+public:
+    mgui_string() {
+        clear();
+    }
+
+    mgui_string(const char* str) {
+        build(str);
+    }
+
+    mgui_string(const mgui_string& other) {
+        clear();
+        str_ = other.str_;
+        str_length_ = other.str_length_;
+    }
+
+    ~mgui_string() {
+        clear();
+    }
+
+    const char operator[](int index) {
+        if (strlen(str_) != str_length_) {
+            return '\0';
+        }
+
+        return str_[index];
+    }
+
+    mgui_string operator=(const char* str) {
+        if (str != nullptr) {
+            clear();
+            build(str);
+        }
+        return *this;
+    }
+
+    mgui_string operator=(const mgui_string& other) noexcept {
+        if (this != &other) {
+            build(other.c_str());
+        }
+        return *this;
+    }
+
+    bool operator==(const mgui_string& str) const {
+        if (str.str_length_ != str_length_) {
+            return false;
+        }
+
+        return memcmp(str_, str.str_, str_length_) == 0;
+    }
+
+    bool operator==(const char* str) const {
+        if (strlen(str) != str_length_) {
+            return false;
+        }
+
+        return memcmp(str_, str, str_length_) == 0;
+    }
+
+    /**
+     * @brief Returns the first pointer of the string.
+     *
+     * @return const char*
+     */
+    const char* c_str() const { return str_; }
+
+    /**
+     * @brief returns the number of characters set.
+     *
+     * @return int
+     */
+    int length() const { return str_length_; }
+
+private:
+
+    /**
+     * @brief
+     * Get the number of characters received, allocate memory and copy them there.
+     *
+     * @param str char[]
+     */
+    inline void build(const char* str) {
+        str_length_ = strlen(str);
+        str_ = new char[str_length_ + 1];
+        memcpy(str_, str, str_length_);
+        str_[str_length_] = '\0';
+    }
+
+    /**
+     * @brief
+     * Initialize string settings and memory release.
+     */
+    inline void clear() {
+        str_ = nullptr;
+        str_length_ = 0;
+        if (str_) {
+            delete[] str_;
+        }
+    }
+
+    /**
+     * @brief
+     * Count the number of characters
+     *
+     * @param str the first pointer of string.
+     * @return Number of characters counted.
+     */
+    inline int strlen(const char* str) const {
+        int len = 0;
+        while (*str != '\0') {
+            len++;
+            str++;
+        }
+        return len;
+    }
+
+    char* str_;
+    int str_length_;
+};
+
+template <typename K, typename V>
+/**
+ * @brief
+ * A simple struct containing key and value
+ */
+class mgui_pair {
+public:
+    bool operator==(const mgui_pair& pair) {
+        return (key == pair.key && value == pair.value);
+    }
+
+    K key;
+    V value;
+};
+
+template <typename V>
+/**
+ * @brief
+ * A map with built-in strings as keys.
+ * The main purpose was to manage the created mgui objects by selecting them.
+ * Originally, I was planning to create a general map, but since it was
+ * necessary to divide the template into strings and strings,
+ * I decided not to create one.
+ */
+class mgui_string_map {
+public:
+    mgui_string_map() {
+        clear();
+    }
+    ~mgui_string_map() {
+        clear();
+    }
+
+    /**
+     * @brief
+     * Adds the specified key and value.
+     * If the key exists, the value will be overwritten.
+     *
+     * @param key key string
+     * @param value Object associated with key
+     */
+    void insert(const mgui_string key, V value) {
+        unsigned long index = djb2_hash(key.c_str());
+
+        mgui_pair<mgui_string, V*> pair = { key, new V(value) };
+
+        const int count = table[index].count();
+        mgui_list_node<mgui_pair<mgui_string, V*>>* node = table[index].first();
+        for (int i = 0; i < count; i++) {
+            if (node == nullptr) {
+                break;
+            }
+
+            if (node->obj.key == key) {
+                // overwrite member
+                node->obj.value = pair.value;
+                return;
+            }
+
+            node = node->next;
+        }
+
+        table[index].add(pair);
+        counter_++;
+    }
+
+    /**
+     * @brief Get the element corresponding to the set key.
+     *
+     * @param key Key corresponding to the value to retrieve.
+     * @return V* A pointer to the element corresponding to the assigned key. If it does not exist, return nullptr.
+     */
+    V* get(const mgui_string key) {
+        unsigned long index = djb2_hash(key.c_str());
+        const int count = table[index].count();
+
+        mgui_list_node<mgui_pair<mgui_string, V*>>* node = table[index].first();
+        for (int i = 0; i < count; i++) {
+            if (node == nullptr) {
+                break;
+            }
+
+            if (node->obj.key == key) {
+                return node->obj.value;
+            }
+
+            node = node->next;
+        }
+
+        return nullptr;
+    }
+
+    /**
+     * @brief Delete the item that exists with the set key.
+     *
+     * @param key key string
+     */
+    void remove(mgui_string key) {
+        unsigned long index = djb2_hash(key.c_str());
+        const int count = table[index].count();
+
+        mgui_list_node<mgui_pair<mgui_string, V*>>* node = table[index].first();
+        for (int i = 0; i < count; i++) {
+            if (node == nullptr) {
+                break;
+            }
+
+            if (node->obj.key == key) {
+                table[index].remove(node->obj);
+                counter_--;
+                break;
+            }
+
+            node = node->next;
+        }
+    }
+
+    /**
+     * @brief
+     * Delete all contents of map
+     */
+    void clear() {
+        for (int i = 0; i < HASH_TABLE_SIZE; i++) {
+            table[i].clear();
+        }
+        counter_ = 0;
+    }
+
+    /**
+     * @brief Get the item count
+     *
+     * @return int item count
+     */
+    inline int count() const { return counter_; }
+
+private:
+
+    /**
+     * @brief DJB2 hash calculation
+     *
+     * @param data Value to calculate hash
+     * @return unsigned long calculation result divided by HASH_TABLE_SIZE
+     */
+    inline unsigned long djb2_hash(const char* data) {
+        unsigned long hash = 5381;
+        int c;
+
+        while (c = *data++) {
+            hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+        }
+        return hash % HASH_TABLE_SIZE;
+    }
+
+    mgui_list<mgui_pair<mgui_string, V*>> table[HASH_TABLE_SIZE];
+    int counter_;
+};
+
 /**
  * @brief
  * This class is a common class that manages font resources (buffers)
@@ -600,529 +1134,9 @@ public:
      * Set up drawing process for objects in inherited classes
      * @param draw Objects that provide a method for drawing
      * @param input_state Current input state
+     * @param current_group 
      */
-    virtual void update(mgui_draw* draw, mgui_input_state *input_state) = 0;
-};
-
-template <typename O>
-struct mgui_list_node {
-    O obj;
-    mgui_list_node* next = nullptr;
-};
-
-template <typename T>
-/**
- * @brief 
- * A simple list class that can be used for various object types. 
- * It is created to avoid using standard functions.
- */
-class mgui_list {
- public:
-  mgui_list() {
-    head = nullptr;
-    tail = nullptr;
-    counter = 0;
-  }
-
-  mgui_list(const mgui_list& other) {
-      head = nullptr;
-      tail = nullptr;
-      counter = 0;
-
-      for (mgui_list_node<T>* node = other.head; node != nullptr; node = node->next) {
-          add(node->obj);
-      }
-  }
-
-  mgui_list(mgui_list&& other) noexcept {
-      head = other.head;
-      tail = other.tail;
-      counter = other.counter;
-
-      other.head = nullptr;
-      other.tail = nullptr;
-      other.counter = 0;
-  }
-
-  ~mgui_list() {
-    clear();
-  }
-
-  mgui_list& operator=(const mgui_list& other) {
-      if (this != &other) {
-          clear();
-          for (mgui_list_node<T>* node = other.head; node != nullptr; node = node->next) {
-              add(node->obj);
-          }
-      }
-      return *this;
-  }
-
-  mgui_list& operator=(mgui_list&& other) noexcept {
-      if (this != &other) {
-          clear();
-
-          head = other.head;
-          tail = other.tail;
-          counter = other.counter;
-
-          other.head = nullptr;
-          other.tail = nullptr;
-          other.counter = 0;
-      }
-      return *this;
-  }
-
-  /**
-   * @brief Appends a new item to the end of a linked list.
-   * 
-   * @param item A new item to append. The objects being set must be comparable.
-   */
-  void add(const T &item) {
-    mgui_list_node<T>* node = new mgui_list_node<T>();
-    node->obj = item;
-    node->next = nullptr;
-
-    if(head == nullptr){
-        head = node;
-    }else{
-        tail->next = node;
-    }
-    tail = node;
-    counter++;
-  }
-
-  /**
-   * @brief Get the selected index object
-   * 
-   * @param index selected index
-   * @return const T selected object or nullptr
-   */
-  const T get(const int index) {
-    mgui_list_node<T>* node = head;
-    for (int i = 0; i < index; i++) {
-      node = node->next;
-    }
-    return node->obj;
-  }
-
-  /**
-   * @brief Get the list node object. Use when you want to scan from a specific index.
-   * @param index selected index
-   * @return mgui_list_node<T>* List node for selected index or nullptr.
-   */
-  mgui_list_node<T>* get_node(const int index) {
-      mgui_list_node<T>* node = head;
-      for (int i = 0; i < index; i++) {
-          node = node->next;
-      }
-      return node;
-  }
-
-  /**
-   * @brief deletes the specified object
-   * 
-   * @param item Comparable objects
-   */
-  void remove(const T &item) {
-    mgui_list_node<T>* current_node = head;
-    mgui_list_node<T>* prev_node = nullptr;
-    
-    while (current_node != nullptr)
-    {
-        if(current_node->obj == item){
-            break;
-        }
-        prev_node = current_node;
-        current_node = current_node->next;
-    }
-
-    if(current_node == nullptr){
-        // No item found
-        return;
-    }
-    
-    if(prev_node == nullptr){
-        // First item removed
-        head = current_node->next;
-
-        if (head == nullptr) {
-            // No item listed
-            tail = nullptr;
-        }
-
-    }else{
-        // Other
-        prev_node->next = current_node->next;
-
-        if(current_node->next == nullptr){
-            // Last item removed
-            tail = prev_node;
-        }
-    }
-    delete current_node;
-    counter--;
-  }
-
-  /**
-   * @brief Deletes all item.
-   */
-  void clear() {
-    while(counter > 0){
-        remove(head->obj);
-    }
-  }
-
-  /**
-   * @brief Get the item count
-   * 
-   * @return int item count
-   */
-  inline int count() const { return counter; }
-
-  /**
-   * @brief It returns first node
-   * 
-   * @return mgui_list_node<T>* first list node
-   */
-  inline mgui_list_node<T>* first() { return head; }
-
-  /**
-   * @brief It returns last node
-   * 
-   * @return mgui_list_node<T>* last list node
-   */
-  inline mgui_list_node<T>* last() { return tail; }
-
- private:
-  mgui_list_node<T>* head;
-  mgui_list_node<T>* tail;
-  int counter;
-};
-
-template <typename T>
-/**
- * @brief 
- * A simple stack class that can be used for various object types.
- * It is created to avoid using standard functions.
- */
-class mgui_stack {
-public:
-    mgui_stack() {
-        head_ = nullptr;
-    }
-
-    ~mgui_stack() {
-        while (head_ != nullptr) {
-            pop();
-        }
-    }
-
-    /**
-     * @brief Add item to the end of stack.
-     * 
-     * @param item object
-     */
-    void push(const T &item) {
-        mgui_list_node<T>* node = new mgui_list_node<T>();
-        node->obj = item;
-        node->next = head_;
-        head_ = node;
-    }
-
-    /**
-     * @brief Take the element from the beginning and move the element reference
-     * 
-     * @return T first object reference
-     */
-    T pop() {
-        mgui_list_node<T>* node = head_;
-        head_ = node->next;
-
-        return static_cast<T&&>(node->obj);
-    }
-
-    /**
-     * @brief Check if number of elements is 0
-     * 
-     * @return true It has no elements
-     * @return false One or more elements exist.
-     */
-    inline bool is_empty() const { return head_ == nullptr; }
-
-private:
-    mgui_list_node<T>* head_;
-};
-
-/**
- * @brief 
- * Basic string management class.
- * Created to avoid implementing standard functions. 
- */
-class mgui_string {
-public:
-    mgui_string() {
-        clear();
-    }
-
-    mgui_string(const char* str) {
-        build(str);
-    }
-
-    mgui_string(const mgui_string& other) {
-        clear();
-        str_ = other.str_;
-        str_length_ = other.str_length_;
-    }
-
-    ~mgui_string() {
-        clear();
-    }
-
-    const char operator[](int index) {
-        if (strlen(str_) != str_length_) {
-            return '\0';
-        }
-
-        return str_[index];
-    }
-
-    mgui_string operator=(const char* str) {
-        return mgui_string(str);
-    }
-
-    bool operator==(const mgui_string& str) const {
-        if (str.str_length_ != str_length_) {
-            return false;
-        }
-
-        return memcmp(str_, str.str_, str_length_) == 0;
-    }
-
-    bool operator==(const char* str) const {
-        if (strlen(str) != str_length_) {
-            return false;
-        }
-
-        return memcmp(str_, str, str_length_) == 0;
-    }
-
-    /**
-     * @brief Returns the first pointer of the string.
-     * 
-     * @return const char* 
-     */
-    const char* c_str() const { return str_; }
-
-    /**
-     * @brief returns the number of characters set.
-     * 
-     * @return int 
-     */
-    int length() const { return str_length_; }
-
-private:
-
-    /**
-     * @brief 
-     * Get the number of characters received, allocate memory and copy them there.
-     * 
-     * @param str char[]
-     */
-    inline void build(const char* str) {
-        str_length_ = strlen(str);
-        str_ = new char[str_length_ + 1];
-        memcpy(str_, str, str_length_);
-        str_[str_length_] = '\0';
-    }
-
-    /**
-     * @brief 
-     * Initialize string settings and memory release.
-     */
-    inline void clear() {
-        str_ = nullptr;
-        str_length_ = 0;
-        if (str_) {
-            delete[] str_;
-        }
-    }
-
-    /**
-     * @brief 
-     * Count the number of characters
-     * 
-     * @param str the first pointer of string.
-     * @return Number of characters counted.
-     */
-    inline int strlen(const char* str) const {
-        int len = 0;
-        while (*str != '\0') {
-            len++;
-            str++;
-        }
-        return len;
-    }
-
-    char* str_;
-    int str_length_;
-};
-
-template <typename K, typename V>
-/**
- * @brief 
- * A simple struct containing key and value
- */
-class mgui_pair { 
-public:
-    bool operator==(const mgui_pair& pair) {
-        return (key == pair.key && value == pair.value);
-    }
-
-    K key;
-    V value;
-};
-
-template <typename V>
-/**
- * @brief 
- * A map with built-in strings as keys. 
- * The main purpose was to manage the created mgui objects by selecting them.
- * Originally, I was planning to create a general map, but since it was
- * necessary to divide the template into strings and strings, 
- * I decided not to create one.
- */
-class mgui_string_map {
-public:
-    mgui_string_map() {
-        clear();
-    }
-    ~mgui_string_map() {
-        clear();
-    }
-
-    /**
-     * @brief
-     * Adds the specified key and value.
-     * If the key exists, the value will be overwritten.
-     * 
-     * @param key key string
-     * @param value Object associated with key
-     */
-    void insert(const mgui_string key, V value) {
-        unsigned long index = djb2_hash(key.c_str());
-
-        mgui_pair<mgui_string, V*> pair = { key, new V(value) };
-
-        const int count = table[index].count();
-        mgui_list_node<mgui_pair<mgui_string, V*>>* node = table[index].first();
-        for (int i = 0; i < count; i++) {
-            if (node == nullptr) {
-                break;
-            }
-
-            if (node->obj.key == key) {
-                // overwrite member
-                node->obj.value = pair.value;
-                return;
-            }
-
-            node = node->next;
-        }
-
-        table[index].add(pair);
-        counter_++;
-    }
-
-    /**
-     * @brief Get the element corresponding to the set key.
-     * 
-     * @param key Key corresponding to the value to retrieve.
-     * @return V* A pointer to the element corresponding to the assigned key. If it does not exist, return nullptr.
-     */
-    V* get(const mgui_string key) {
-        unsigned long index = djb2_hash(key.c_str());
-        const int count = table[index].count();
-
-        mgui_list_node<mgui_pair<mgui_string, V*>>* node = table[index].first();
-        for (int i = 0; i < count; i++) {
-            if (node == nullptr) {
-                break;
-            }
-
-            if (node->obj.key == key) {
-                return node->obj.value;
-            }
-
-            node = node->next;
-        }
-
-        return nullptr;
-    }
-
-    /**
-     * @brief Delete the item that exists with the set key.
-     * 
-     * @param key key string
-     */
-    void remove(mgui_string key) {
-        unsigned long index = djb2_hash(key.c_str());
-        const int count = table[index].count();
-
-        mgui_list_node<mgui_pair<mgui_string, V*>>* node = table[index].first();
-        for (int i = 0; i < count; i++) {
-            if (node == nullptr) {
-                break;
-            }
-
-            if (node->obj.key == key) {
-                table[index].remove(node->obj);
-                counter_--;
-                break;
-            }
-
-            node = node->next;
-        }
-    }
-
-    /**
-     * @brief
-     * Delete all contents of map
-     */
-    void clear() {
-        for (int i = 0; i < HASH_TABLE_SIZE; i++) {
-            table[i].clear();
-        }
-        counter_ = 0;
-    }
-
-    /**
-     * @brief Get the item count
-     * 
-     * @return int item count
-     */
-    inline int count() const { return counter_; }
-
-private:
-
-    /**
-     * @brief DJB2 hash calculation
-     * 
-     * @param data Value to calculate hash
-     * @return unsigned long calculation result divided by HASH_TABLE_SIZE
-     */
-    inline unsigned long djb2_hash(const char* data) {
-        unsigned long hash = 5381;
-        int c;
-
-        while (c = *data++) {
-            hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-        }
-        return hash % HASH_TABLE_SIZE;
-    }
-
-    mgui_list<mgui_pair<mgui_string, V*>> table[HASH_TABLE_SIZE];
-    int counter_;
+    virtual void update(mgui_draw* draw, mgui_input_state *input_state, mgui_string* current_group) = 0;
 };
 
 /**
@@ -1276,7 +1290,7 @@ public:
 
         // set settings
         while(node != nullptr){
-            node->obj->update(draw_, state);
+            node->obj->update(draw_, state, nullptr);
             node = node->next;
         }
     }
@@ -1295,6 +1309,145 @@ private:
     uint8_t* lcd_buffer;
     int buffer_size;
 };
+
+/**
+ * @brief
+ * Adds/deletes/updates drawing objects and provides drawing status.
+ */
+class mgui_multi {
+public:
+    /**
+     * @brief Construct a new mgui draw object
+     *
+     * @param width Target screen width
+     * @param height Target screen height
+     */
+    explicit mgui_multi(const uint8_t width, const uint8_t height) {
+        buffer_size = width * (height >> 3);
+
+        lcd_buffer = new uint8_t[buffer_size]();
+        memset(lcd_buffer, 0, buffer_size);
+        
+        draw_ = new mgui_draw(width, height, lcd_buffer);
+        input_ = nullptr;
+    }
+
+    ~mgui_multi() {
+        delete draw_;
+        delete[] lcd_buffer;
+    }
+
+    inline void set_input(mgui_input* input) {
+        input_ = input;
+    }
+
+    inline void add(const char *group_name, mgui_object* item) {
+        mgui_list<mgui_object*>* list =  map.get(group_name);
+        if (list == nullptr) {
+            mgui_list<mgui_object*> new_list;
+            new_list.add(item);
+            map.insert(group_name, new_list);
+            selected_ = group_name;
+            return;
+        }
+
+        list->add(item);
+    }
+
+    inline void remove(const char* group_name, mgui_object* item) {
+        mgui_list<mgui_object*>* list = map.get(group_name);
+        if (list != nullptr) {
+            list->remove(item);
+        }
+    }
+
+    inline void clear(const char* group_name) {
+        mgui_list<mgui_object*>* list = map.get(group_name);
+        if (list != nullptr) {
+            list->clear();
+            map.remove(group_name);
+        }
+    }
+
+    /**
+     * @brief
+     * Update screen drawing
+     */
+    inline void update_lcd() {
+        // update input state
+        mgui_input_state* state = nullptr;
+        if (input_ != nullptr) {
+            input_->update();
+            state = input_->get_input_result();
+        }
+
+        mgui_list<mgui_object*>* list = map.get(selected_);
+        if (list != nullptr) {
+            mgui_list_node<mgui_object*>* node = list->first();
+
+            // clear buffer
+            memset(lcd_buffer, 0, buffer_size);
+
+            // set settings
+            while (node != nullptr) {
+                node->obj->update(draw_, state, &selected_);
+                node = node->next;
+            }
+        }
+    }
+
+    /**
+     * @brief Get the buffer for the set screen size
+     *
+     * @return uint8_t* A pointer to a screen buffer.
+     */
+    inline uint8_t* lcd() { return lcd_buffer; }
+
+private:
+    mgui_draw* draw_;
+    mgui_input* input_;
+    mgui_string_map<mgui_list<mgui_object*>> map;
+    uint8_t* lcd_buffer;
+    int buffer_size;
+    mgui_string selected_;
+};
+//
+//class mgui_selector {
+//public:
+//    static mgui_selector& get_mgui_selector() {
+//        static mgui_selector provider;
+//        return provider;
+//    }
+//
+//    void add(mgui_string title, mgui* view) {
+//        display_.insert(title, *view);
+//        if (display_.count() == 1) {
+//            current_ = view;
+//        }
+//    }
+//
+//    void remove(mgui_string title) {
+//        display_.remove(title);
+//    }
+//
+//    void select(mgui_string title) {
+//        current_ = display_.get(title);
+//    }
+//
+//    const mgui* get_current() const { return current_; }
+//
+//private:
+//    mgui_selector() {
+//        current_ = nullptr;
+//    }
+//
+//    ~mgui_selector() {
+//        display_.clear();
+//    }
+//
+//    mgui_string_map<mgui> display_;
+//    mgui* current_;
+//};
 
 class mgui_padding_property {
 public:
@@ -1428,7 +1581,7 @@ public:
     inline bool invert() const { return invert_; }
     inline void set_invert(bool invert) { invert_ = invert; }
 
-    void update(mgui_draw* draw, mgui_input_state*) {
+    void update(mgui_draw* draw, mgui_input_state*, mgui_string*) {
         if(invert_) {
             draw->draw_pixel(x_, y_, !on_);
             return;
@@ -1476,7 +1629,7 @@ public:
     inline uint8_t invert() const { return invert_; }
     inline void set_invert(uint8_t invert) { invert_ = invert; }
 
-    void update(mgui_draw* draw, mgui_input_state*) {
+    void update(mgui_draw* draw, mgui_input_state*, mgui_string*) {
         draw->draw_line(x0_, y0_, x1_, y1_, !invert_);
     }
 
@@ -1516,7 +1669,7 @@ public:
     inline uint8_t fill() const { return fill_; }
     inline void set_fill(uint8_t fill) { fill_ = fill; }
 
-    void update(mgui_draw* draw, mgui_input_state*) {
+    void update(mgui_draw* draw, mgui_input_state*, mgui_string*) {
         draw->draw_circle(x_, y_, r_, fill_);
     }
 
@@ -1546,7 +1699,7 @@ public:
 
     mgui_object_type type() const { return mgui_object_type::Rectangle; }
 
-    void update(mgui_draw* draw, mgui_input_state*) {
+    void update(mgui_draw* draw, mgui_input_state*, mgui_string*) {
 
         if (r_ > 0) {
             draw->draw_rectangle_rounded(
@@ -1628,7 +1781,7 @@ public:
     inline uint8_t invert() const { return invert_; }
     inline void set_invert(uint8_t invert) { invert_ = invert; }
 
-    void update(mgui_draw* draw, mgui_input_state*) {
+    void update(mgui_draw* draw, mgui_input_state*, mgui_string*) {
         draw->draw_triangle(x0_, y0_, x1_, y1_, x2_, y2_, invert_);
     }
 
@@ -1671,7 +1824,7 @@ public:
 
     mgui_object_type type() const { return mgui_object_type::Text; }
     
-    void update(mgui_draw* draw, mgui_input_state*) {
+    void update(mgui_draw* draw, mgui_input_state*, mgui_string*) {
         for(int i = 0; i < text_property_->get_text_length(); i++) {
             int x0 = x_ + font()->font_width() * i;
             draw->draw_char(font(), x0, y_, text_property_->get_text_index(i), invert_);
@@ -1793,7 +1946,7 @@ class mgui_button : public mgui_core_ui {
 
      mgui_object_type type() const { return mgui_object_type::Button; };
 
-     void update(mgui_draw* draw, mgui_input_state *input) {
+     void update(mgui_draw* draw, mgui_input_state *input, mgui_string* current_group) {
          if (input_event_callback_) {
              input_event_callback_(this, input);
          }
@@ -1801,11 +1954,11 @@ class mgui_button : public mgui_core_ui {
          bool is_filled = get_on_selected()? !get_on_press() : get_on_press();
          
          rect_.set_fill(is_filled);
-         rect_.update(draw, input);
+         rect_.update(draw, input, current_group);
          
          if (text_) {
              text_->set_invert(is_filled);
-             text_->update(draw, input);
+             text_->update(draw, input, current_group);
          }
      };
 
@@ -1822,12 +1975,12 @@ class mgui_button : public mgui_core_ui {
       * 
       * @param event_callback 
       * Implement functions to change the state of the gui and operate other non-gui functions
-      * using functions set in mgui_core_ui using the value of mgui_input_state
+      * using functions set in mgui_button using the value of mgui_input_state
       * (the result of input reading set in mgui_input). 
       * The set function is called each time before drawing is updated.
       */
      inline void set_input_event_handler(
-         void (*event_callback)(const mgui_core_ui* behavior, const mgui_input_state state[])) {
+         void (*event_callback)(const mgui_button* sender, const mgui_input_state state[])) {
          input_event_callback_ = event_callback;
      }
 
@@ -1865,7 +2018,7 @@ class mgui_button : public mgui_core_ui {
          text_->set_y(ry + text_rel_y_ + padding_.up());
      }
 
-     void (*input_event_callback_)(const mgui_core_ui* behavior, const mgui_input_state state[]);
+     void (*input_event_callback_)(const mgui_button* sender, const mgui_input_state state[]);
      mgui_padding_property padding_;
      mgui_text *text_;
      uint16_t text_rel_x_;
@@ -1918,20 +2071,20 @@ public:
 
     mgui_menu_item_type item_type() const { return item_type_; }
 
-    void update(mgui_draw* draw, mgui_input_state* input) {
+    void update(mgui_draw* draw, mgui_input_state* input, mgui_string* current_group) {
         if (input_event_callback_) {
-            input_event_callback_(this, input);
+            input_event_callback_(this, input, current_group);
         }
 
         bool focus = get_on_selected()? !get_on_press() : get_on_press();
 
         if (focus) {
-            rect_.update(draw, input);
+            rect_.update(draw, input, current_group);
         }
  
         if (text_) {
             text_->set_invert(focus);
-            text_->update(draw, input);
+            text_->update(draw, input, current_group);
         }
 
         switch (item_type_) {
@@ -1940,13 +2093,13 @@ public:
                 is_checked_ = !is_checked_;
             }
             previous_on_press_ = get_on_press();
-            draw_check_box(draw, input, focus);
+            draw_check_box(draw, input, current_group, focus);
             break;
         case mgui_menu_item_type::Menu:
-            draw_menu_guide(draw, input, focus);
+            draw_menu_guide(draw, input, current_group, focus);
             break;
         case mgui_menu_item_type::ReturnToParentMenu:
-            draw_return_menu_guide(draw, input, focus);
+            draw_return_menu_guide(draw, input, current_group, focus);
             break;
         default:
             break;
@@ -2037,12 +2190,12 @@ public:
      *
      * @param event_callback
      * Implement functions to change the state of the gui and operate other non-gui functions
-     * using functions set in mgui_core_ui using the value of mgui_input_state
+     * using functions set in mgui_menu_item using the value of mgui_input_state
      * (the result of input reading set in mgui_input).
      * The set function is called each time before drawing is updated.
      */
     inline void set_input_event_handler(
-        void (*event_callback)(const mgui_core_ui* behavior, const mgui_input_state state[])) {
+        void (*event_callback)(const mgui_menu_item* sender, const mgui_input_state state[], mgui_string* current_group)) {
         input_event_callback_ = event_callback;
     }
 
@@ -2066,34 +2219,34 @@ public:
 
 private:
 
-    inline void draw_check_box(mgui_draw* draw, mgui_input_state *input, bool invert) {
+    inline void draw_check_box(mgui_draw* draw, mgui_input_state *input, mgui_string* current_group, bool invert) {
         check_rect_outer.set_invert(invert);
-        check_rect_outer.update(draw, input);
+        check_rect_outer.update(draw, input, current_group);
         if (is_checked_) {
             check_rect_inner.set_invert(invert);
-            check_rect_inner.update(draw, input);
+            check_rect_inner.update(draw, input, current_group);
         }
     }
 
-    inline void draw_menu_guide(mgui_draw* draw, mgui_input_state* input, bool invert) {
+    inline void draw_menu_guide(mgui_draw* draw, mgui_input_state* input, mgui_string* current_group, bool invert) {
         if (child_menu_) {
             menu_right_arrow_up.set_invert(invert);
             menu_right_arrow_down.set_invert(invert);
-            menu_right_arrow_up.update(draw, input);
-            menu_right_arrow_down.update(draw, input);
+            menu_right_arrow_up.update(draw, input, current_group);
+            menu_right_arrow_down.update(draw, input, current_group);
         }
     }
 
-    inline void draw_return_menu_guide(mgui_draw* draw, mgui_input_state* input, bool invert) {
+    inline void draw_return_menu_guide(mgui_draw* draw, mgui_input_state* input, mgui_string* current_group, bool invert) {
         if (is_return_menu_) {
             menu_left_arrow_up.set_invert(invert);
             menu_left_arrow_down.set_invert(invert);
-            menu_left_arrow_up.update(draw, input);
-            menu_left_arrow_down.update(draw, input);
+            menu_left_arrow_up.update(draw, input, current_group);
+            menu_left_arrow_down.update(draw, input, current_group);
         }
     }
 
-    void (*input_event_callback_)(const mgui_core_ui* behavior, const mgui_input_state state[]);
+    void (*input_event_callback_)(const mgui_menu_item* sender, const mgui_input_state state[], mgui_string* current_group);
     bool previous_on_press_;
     bool is_checked_;
     bool is_return_menu_;
@@ -2125,20 +2278,26 @@ public:
         item_count_ = item_count;
         on_return_ = false;
         on_enter_ = false;
+        input_event_callback_ = nullptr;
     }
     ~mgui_menu(){
         delete moved_from_;
     }
 
     mgui_object_type type() const { return mgui_object_type::Menu; }
-    void update(mgui_draw* draw, mgui_input_state* input) {
+
+    void update(mgui_draw* draw, mgui_input_state* input, mgui_string* current_group) {
+        if (input_event_callback_) {
+            input_event_callback_(this, input);
+        }
+
         mgui_list_node<mgui_menu_item*>* node = item_first_node_;
         for (int i = 0; i < item_count_; i++) {
             if (node == nullptr) {
                 break;
             }
             node->obj->_set_draw_position(i, item_count_, window_width_, window_height_);
-            node->obj->update(draw, input);
+            node->obj->update(draw, input, current_group);
             node = node->next;
         }
     }
@@ -2274,6 +2433,20 @@ public:
         }
     }
 
+     /**
+      * @brief Set the input event handler object
+      * 
+      * @param event_callback 
+      * Implement functions to change the state of the gui and operate other non-gui functions
+      * using functions set in mgui_menu using the value of mgui_input_state
+      * (the result of input reading set in mgui_input). 
+      * The set function is called each time before drawing is updated.
+      */
+     inline void set_input_event_handler(
+         void (*event_callback)(mgui_menu* sender, const mgui_input_state state[])) {
+         input_event_callback_ = event_callback;
+     }
+
     inline uint16_t item_count() const { return item_count_; }
     inline void set_item_count(uint16_t item_count) { item_count_ = item_count; }
 
@@ -2284,6 +2457,7 @@ public:
     inline void set_height(uint16_t height) { window_height_ = height; }
 
 private:
+    void (*input_event_callback_)(mgui_menu* sender, const mgui_input_state state[]);
     bool on_return_;
     bool on_enter_;
 
@@ -2326,10 +2500,10 @@ public:
 
     mgui_object_type type() const { return mgui_object_type::UiGroup; }
 
-    void update(mgui_draw* draw, mgui_input_state* input) {
+    void update(mgui_draw* draw, mgui_input_state* input, mgui_string* current_group) {
         mgui_list_node<mgui_core_ui*>* node = list->first();
         while (node != nullptr) {
-            node->obj->update(draw, input);
+            node->obj->update(draw, input, current_group);
             node = node->next;
         }
     }
@@ -2445,38 +2619,6 @@ private:
 
     mgui_list<mgui_core_ui*>* list;
     uint16_t selected_index_;
-};
-
-class mgui_selector {
-public:
-    mgui_selector() {
-        current_ = nullptr;
-    }
-
-    ~mgui_selector() {
-        display_.clear();
-    }
-
-    void add(mgui_string title, mgui* view) {
-        display_.insert(title, *view);
-        if (display_.count() == 1) {
-            current_ = view;
-        }
-    }
-
-    void remove(mgui_string title) {
-        display_.remove(title);
-    }
-
-    void select(mgui_string title) {
-        current_= display_.get(title);
-    }
-
-    const mgui* get_current() const { return current_; }
-
-private:
-    mgui_string_map<mgui> display_;
-    mgui* current_;
 };
 
 #endif // MGUI_H
