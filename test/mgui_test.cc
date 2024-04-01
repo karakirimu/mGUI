@@ -689,6 +689,30 @@ namespace UserInterface {
         // debug_print(g.lcd()); // OK
     }
 
+
+    static void button_group_handler(mgui_ui_group* sender, const mgui_input_state state[], mgui_string* current_group) {
+        EXPECT_TRUE(sender != nullptr);
+        EXPECT_TRUE(current_group == nullptr);
+    }
+
+    TEST(UiGroupTest, Callback) {
+        mgui g(WIDTH, HEIGHT);
+        mgui_button button(10, 10, 10, 10);
+        mgui_button button2(20, 20, 10, 10);
+        mgui_button button3(30, 30, 10, 10);
+        mgui_button button4(40, 40, 10, 10);
+        mgui_ui_group group;
+        group.add(&button);
+        group.add(&button2);
+        group.add(&button3);
+        group.add(&button4);
+        group.set_input_event_handler(&button_group_handler);
+
+        g.add((mgui_object*)&group);
+        g.update_lcd();
+        // debug_print(g.lcd()); // OK
+    }
+
     TEST(MenuTest, Nested) {
         mgui g(WIDTH, HEIGHT);
 
