@@ -282,7 +282,7 @@ public:
         head_ = nullptr;
     }
 
-    ~mgui_stack() {
+    virtual ~mgui_stack() {
         while (head_ != nullptr) {
             pop();
         }
@@ -1329,16 +1329,11 @@ public:
         memset(lcd_buffer, 0, buffer_size);
         
         draw_ = new mgui_draw(width, height, lcd_buffer);
-        input_ = nullptr;
     }
 
     ~mgui_multi() {
         delete draw_;
         delete[] lcd_buffer;
-    }
-
-    inline void set_input(mgui_input* input) {
-        input_ = input;
     }
 
     inline void add(const char *group_name, mgui_object* item) {
@@ -1369,6 +1364,16 @@ public:
         }
     }
 
+    inline bool select(const char* group_name) {
+        mgui_list<mgui_object*>* list = map.get(group_name);
+        if (list != nullptr) {
+            selected_ = group_name;
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * @brief
      * Update screen drawing
@@ -1376,10 +1381,8 @@ public:
     inline void update_lcd() {
         // update input state
         mgui_input_state* state = nullptr;
-        if (input_ != nullptr) {
-            input_->update();
-            state = input_->get_input_result();
-        }
+        input_.update();
+        state = input_.get_input_result();
 
         mgui_list<mgui_object*>* list = map.get(selected_);
         if (list != nullptr) {
@@ -1403,51 +1406,16 @@ public:
      */
     inline uint8_t* lcd() { return lcd_buffer; }
 
+    inline mgui_input* input() { return &input_; }
+
 private:
     mgui_draw* draw_;
-    mgui_input* input_;
+    mgui_input input_;
     mgui_string_map<mgui_list<mgui_object*>> map;
     uint8_t* lcd_buffer;
     int buffer_size;
     mgui_string selected_;
 };
-//
-//class mgui_selector {
-//public:
-//    static mgui_selector& get_mgui_selector() {
-//        static mgui_selector provider;
-//        return provider;
-//    }
-//
-//    void add(mgui_string title, mgui* view) {
-//        display_.insert(title, *view);
-//        if (display_.count() == 1) {
-//            current_ = view;
-//        }
-//    }
-//
-//    void remove(mgui_string title) {
-//        display_.remove(title);
-//    }
-//
-//    void select(mgui_string title) {
-//        current_ = display_.get(title);
-//    }
-//
-//    const mgui* get_current() const { return current_; }
-//
-//private:
-//    mgui_selector() {
-//        current_ = nullptr;
-//    }
-//
-//    ~mgui_selector() {
-//        display_.clear();
-//    }
-//
-//    mgui_string_map<mgui> display_;
-//    mgui* current_;
-//};
 
 class mgui_padding_property {
 public:
@@ -1461,6 +1429,16 @@ public:
     bool operator==(const mgui_padding_property& other) const
     {
         return left_ == other.left_ && up_ == other.up_ && right_ == other.right_ && down_ == other.down_;
+    }
+
+    mgui_padding_property operator=(const mgui_padding_property& other) noexcept {
+        if (this != &other) {
+            this->left_ = other.left_;
+            this->up_ = other.up_;
+            this->right_ = other.right_;
+            this->down_ = other.down_;
+        }
+        return *this;
     }
 
     inline uint16_t left() const { return left_; }
@@ -1503,6 +1481,24 @@ public:
 
     virtual ~mgui_text_property() {
         clear();
+    }
+
+    mgui_text_property operator=(const mgui_text_property& other) noexcept {
+        if (this != &other) {
+            this->clear();
+            this->font_ = other.font_;
+            this->text_ = other.text_;
+            this->text_index_ = other.text_index_;
+            this->text_length = other.text_length;
+        }
+        return *this;
+    }
+
+    bool operator==(const mgui_text_property& other) {
+        return this->font_ == other.font_
+            && this->text_ == other.text_
+            && this->text_index_ == other.text_index_
+            && this->text_length == other.text_length;
     }
 
     inline char* get_text() const { return text_; }
@@ -1567,6 +1563,16 @@ public:
     }
     virtual ~mgui_pixel(){}
 
+    mgui_pixel operator=(const mgui_pixel& other) noexcept {
+        if (this != &other) {
+            this->x_ = other.x_;
+            this->y_ = other.y_;
+            this->on_ = other.on_;
+            this->invert_ = other.invert_;
+        }
+        return *this;
+    }
+
     mgui_object_type type() const { return mgui_object_type::Pixel; }
 
     inline uint16_t x() const { return x_; }
@@ -1612,6 +1618,17 @@ public:
     }
     virtual ~mgui_line() {}
 
+    mgui_line operator=(const mgui_line& other) noexcept {
+        if (this != &other) {
+            this->x0_ = other.x0_;
+            this->y0_ = other.y0_;
+            this->x1_ = other.x1_;
+            this->y1_ = other.y1_;
+            this->invert_ = other.invert_;
+        }
+        return *this;
+    }
+
     mgui_object_type type() const { return mgui_object_type::Line; }
 
     inline uint16_t x0() const { return x0_; }
@@ -1655,6 +1672,16 @@ public:
     }
     virtual ~mgui_circle(){}
 
+    mgui_circle operator=(const mgui_circle& other) noexcept {
+        if (this != &other) {
+            this->x_ = other.x_;
+            this->y_ = other.y_;
+            this->r_ = other.r_;
+            this->fill_ = other.fill_;
+        }
+        return *this;
+    }
+
     mgui_object_type type() const { return mgui_object_type::Circle; }
 
     inline uint16_t x() const { return x_; }
@@ -1696,6 +1723,19 @@ public:
         invert_ = false;
     }
     virtual ~mgui_rectangle() {}
+
+    mgui_rectangle operator=(const mgui_rectangle& other) noexcept {
+        if (this != &other) {
+            this->x_ = other.x_;
+            this->y_ = other.y_;
+            this->width_ = other.width_;
+            this->height_ = other.height_;
+            this->r_ = other.r_;
+            this->fill_ = other.fill_;
+            this->invert_ = other.invert_;
+        }
+        return *this;
+    }
 
     mgui_object_type type() const { return mgui_object_type::Rectangle; }
 
@@ -1757,6 +1797,19 @@ public:
         invert_ = 0;
     }
     virtual ~mgui_triangle() {}
+
+    mgui_triangle operator=(const mgui_triangle& other) noexcept {
+        if (this != &other) {
+            this->x0_ = other.x0_;
+            this->y0_ = other.y0_;
+            this->x1_ = other.x1_;
+            this->y1_ = other.y1_;
+            this->x2_ = other.x2_;
+            this->y2_ = other.y2_;
+            this->invert_ = other.invert_;
+        }
+        return *this;
+    }
 
     mgui_object_type type() const { return mgui_object_type::Triangle; }
 
@@ -1820,6 +1873,27 @@ public:
 
     ~mgui_text() {
         delete text_property_;
+    }
+
+    mgui_text operator=(const mgui_text& other) noexcept {
+        if (this != &other) {
+            this->x_ = other.x_;
+            this->y_ = other.y_;
+            this->width_ = other.width_;
+            this->height_ = other.height_;
+            this->invert_ = other.invert_;
+            this->text_property_ = other.text_property_;
+        }
+        return *this;
+    }
+
+    bool operator==(const mgui_text& other) {
+        return this->x_ == other.x_
+            && this->y_ == other.y_
+            && this->width_ == other.width_
+            && this->height_ == other.height_
+            && this->invert_ == other.invert_
+            && this->text_property_ == other.text_property_;
     }
 
     mgui_object_type type() const { return mgui_object_type::Text; }
@@ -1942,17 +2016,29 @@ class mgui_button : public mgui_core_ui {
          input_event_callback_ = nullptr;
 
      };
-     ~mgui_button(){};
+     virtual ~mgui_button(){};
+
+     mgui_button operator=(const mgui_button& other) noexcept {
+        if (this != &other) {
+            this->text_ = other.text_;
+            this->text_rel_x_ = other.text_rel_x_;
+            this->text_rel_y_ = other.text_rel_y_;
+            this->padding_ = other.padding_;
+            this->rect_ = other.rect_;
+            this->input_event_callback_ = other.input_event_callback_;
+        }
+        return *this;
+    }
 
      mgui_object_type type() const { return mgui_object_type::Button; };
 
      void update(mgui_draw* draw, mgui_input_state *input, mgui_string* current_group) {
-         if (input_event_callback_) {
-             input_event_callback_(this, input);
-         }
-         
          bool is_filled = get_on_selected()? !get_on_press() : get_on_press();
          
+         if (input_event_callback_ && get_on_selected()) {
+             input_event_callback_(this, input, current_group);
+         }
+                  
          rect_.set_fill(is_filled);
          rect_.update(draw, input, current_group);
          
@@ -1980,7 +2066,7 @@ class mgui_button : public mgui_core_ui {
       * The set function is called each time before drawing is updated.
       */
      inline void set_input_event_handler(
-         void (*event_callback)(const mgui_button* sender, const mgui_input_state state[])) {
+         void (*event_callback)(const mgui_button* sender, const mgui_input_state state[], mgui_string* current_group)) {
          input_event_callback_ = event_callback;
      }
 
@@ -2018,7 +2104,7 @@ class mgui_button : public mgui_core_ui {
          text_->set_y(ry + text_rel_y_ + padding_.up());
      }
 
-     void (*input_event_callback_)(const mgui_button* sender, const mgui_input_state state[]);
+     void (*input_event_callback_)(const mgui_button* sender, const mgui_input_state state[], mgui_string* current_group);
      mgui_padding_property padding_;
      mgui_text *text_;
      uint16_t text_rel_x_;
@@ -2066,6 +2152,28 @@ public:
     }
 
     virtual ~mgui_menu_item(){}
+
+    mgui_menu_item operator=(const mgui_menu_item& other) noexcept {
+        if (this != &other) {
+            this->text_ = other.text_;
+            this->text_rel_x_ = other.text_rel_x_;
+            this->text_rel_y_ = other.text_rel_y_;
+            this->child_menu_ = other.child_menu_;
+            this->is_checked_ = other.is_checked_;
+            this->is_return_menu_ = other.is_return_menu_;
+            this->previous_on_press_ = other.previous_on_press_;
+            this->item_type_ = other.item_type_;
+            this->rect_ = other.rect_;
+            this->input_event_callback_ = other.input_event_callback_;
+            this->check_rect_outer = other.check_rect_outer;
+            this->check_rect_inner = other.check_rect_inner;
+            this->menu_right_arrow_up = other.menu_right_arrow_up;
+            this->menu_right_arrow_down = other.menu_right_arrow_down;
+            this->menu_left_arrow_up = other.menu_left_arrow_up;
+            this->menu_left_arrow_down = other.menu_left_arrow_down;
+        }
+        return *this;
+    }
 
     mgui_object_type type() const { return mgui_object_type::MenuItem; }
 
@@ -2189,7 +2297,7 @@ public:
      * @brief Set the input event handler object
      *
      * @param event_callback
-     * Implement functions to change the state of the gui and operate other non-gui functions
+     * - Implement functions to change the state of the gui and operate other non-gui functions
      * using functions set in mgui_menu_item using the value of mgui_input_state
      * (the result of input reading set in mgui_input).
      * The set function is called each time before drawing is updated.
@@ -2284,11 +2392,25 @@ public:
         delete moved_from_;
     }
 
+    mgui_menu operator=(const mgui_menu& other) noexcept {
+        if (this != &other) {
+            this->moved_from_ = other.moved_from_;
+            this->window_width_ = other.window_width_;
+            this->window_height_ = other.window_height_;
+            this->item_first_node_ = other.item_first_node_;
+            this->item_count_ = other.item_count_;
+            this->on_return_ = other.on_return_;
+            this->on_enter_ = other.on_enter_;
+            this->input_event_callback_ = other.input_event_callback_;
+        }
+        return *this;
+    }
+
     mgui_object_type type() const { return mgui_object_type::Menu; }
 
     void update(mgui_draw* draw, mgui_input_state* input, mgui_string* current_group) {
         if (input_event_callback_) {
-            input_event_callback_(this, input);
+            input_event_callback_(this, input, current_group);
         }
 
         mgui_list_node<mgui_menu_item*>* node = item_first_node_;
@@ -2443,7 +2565,7 @@ public:
       * The set function is called each time before drawing is updated.
       */
      inline void set_input_event_handler(
-         void (*event_callback)(mgui_menu* sender, const mgui_input_state state[])) {
+         void (*event_callback)(mgui_menu* sender, const mgui_input_state state[], mgui_string* current_group)) {
          input_event_callback_ = event_callback;
      }
 
@@ -2457,7 +2579,7 @@ public:
     inline void set_height(uint16_t height) { window_height_ = height; }
 
 private:
-    void (*input_event_callback_)(mgui_menu* sender, const mgui_input_state state[]);
+    void (*input_event_callback_)(mgui_menu* sender, const mgui_input_state state[], mgui_string* current_group);
     bool on_return_;
     bool on_enter_;
 
@@ -2493,6 +2615,7 @@ public:
     mgui_ui_group() {
         list = new mgui_list<mgui_core_ui*>();
         selected_index_ = 0;
+        input_event_callback_ = nullptr;
     }
     ~mgui_ui_group() {
         delete list;
@@ -2500,7 +2623,25 @@ public:
 
     mgui_object_type type() const { return mgui_object_type::UiGroup; }
 
+     /**
+      * @brief Set the input event handler object
+      * 
+      * @param event_callback 
+      * Implement functions to change the state of the gui and operate other non-gui functions
+      * using functions set in mgui_menu using the value of mgui_input_state
+      * (the result of input reading set in mgui_input). 
+      * The set function is called each time before drawing is updated.
+      */
+     inline void set_input_event_handler(
+         void (*event_callback)(mgui_ui_group* sender, const mgui_input_state state[], mgui_string* current_group)) {
+         input_event_callback_ = event_callback;
+     }
+
     void update(mgui_draw* draw, mgui_input_state* input, mgui_string* current_group) {
+        if (input_event_callback_) {
+            input_event_callback_(this, input, current_group);
+        }
+
         mgui_list_node<mgui_core_ui*>* node = list->first();
         while (node != nullptr) {
             node->obj->update(draw, input, current_group);
@@ -2616,6 +2757,8 @@ private:
             node = node->next;
         } 
     }
+
+    void (*input_event_callback_)(mgui_ui_group* sender, const mgui_input_state state[], mgui_string* current_group);
 
     mgui_list<mgui_core_ui*>* list;
     uint16_t selected_index_;
