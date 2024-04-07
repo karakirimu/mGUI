@@ -108,7 +108,7 @@ static void menu_return_handler(const mgui_menu_item* sender, const mgui_input_s
     // 0 -> 1 edge
     if(button_state < state[0].value_1){
         // change gui group
-        *current_group = "buttons";
+        *current_group = "main";
     }
 
     button_state = state[0].value_1;
@@ -178,6 +178,37 @@ static void test_menu(mgui_multi *gui) {
     gui->add("menu", (mgui_object*)&menu);
 }
 
+static void test_text(mgui_multi *gui) {
+    static font_16x8 font;
+
+    static mgui_menu_item item8;
+    static mgui_text text8(&font, "Return");
+    item8.set_text(&text8);
+    item8.set_input_event_handler(&menu_return_handler);
+
+    static mgui_menu menu(SSD1306_WIDTH, SSD1306_HEIGHT);
+    menu.set_input_event_handler(&menu_handler);
+    menu.add(&item8);
+
+    gui->add("text", (mgui_object*)&menu);
+
+    static mgui_text long_text(&font, "This is long text sample.");
+    long_text.set_x(0);
+    long_text.set_y(16);
+    long_text.set_view_height(font.font_height());
+    long_text.set_view_width(SSD1306_WIDTH);
+    long_text.set_move(true, 2);
+    gui->add("text", (mgui_object*)&long_text);
+
+    static mgui_text long_text2(&font, "This is long text sample.");
+    long_text2.set_x(32);
+    long_text2.set_y(32);
+    long_text2.set_view_height(font.font_height());
+    long_text2.set_view_width(SSD1306_WIDTH / 2);
+    long_text2.set_move(true);
+    gui->add("text", (mgui_object*)&long_text2);
+}
+
 static void button_group_handler(mgui_ui_group* sender, const mgui_input_state state[], mgui_string* current_group){
     sender->set_on_press(state[0].value_1);
 
@@ -186,7 +217,7 @@ static void button_group_handler(mgui_ui_group* sender, const mgui_input_state s
     sender->set_on_select_next(delta > 0);
 }
 
-static void button_menu_handler(const mgui_button* sender, const mgui_input_state state[], mgui_string* current_group){
+static void move_to_test_menu(const mgui_button* sender, const mgui_input_state state[], mgui_string* current_group){
     static int button_state = state[0].value_1;
     
     // 0 -> 1 edge
@@ -198,26 +229,45 @@ static void button_menu_handler(const mgui_button* sender, const mgui_input_stat
     button_state = state[0].value_1;
 }
 
+static void move_to_test_text(const mgui_button* sender, const mgui_input_state state[], mgui_string* current_group){
+    static int button_state = state[0].value_1;
+    
+    // 0 -> 1 edge
+    if(button_state < state[0].value_1){
+        // change gui group
+        *current_group = "text";
+    }
+
+    button_state = state[0].value_1;
+}
+
 static void test_main(mgui_multi* gui) {
     static font_16x8 font;
     
-    static mgui_button button_menu(10, 48);
+    static mgui_button button_menu(10, 2);
     static mgui_text menu_text(&font, "menu");
     button_menu.set_text(&menu_text);
     button_menu.set_padding(4,0,4,0);
-    button_menu.set_input_event_handler(&button_menu_handler);
+    button_menu.set_input_event_handler(&move_to_test_menu);
 
-    static mgui_button button_status(64, 48);
+    static mgui_button button_status(64, 2);
     static mgui_text status_text(&font, "status");
     button_status.set_text(&status_text);
     button_status.set_padding(4,0,4,0);
 
+    static mgui_button button_text(10, 24);
+    static mgui_text text_text(&font, "texts");
+    button_text.set_text(&text_text);
+    button_text.set_padding(4,0,4,0);
+    button_text.set_input_event_handler(&move_to_test_text);
+
     static mgui_ui_group group;
     group.add(&button_menu);
     group.add(&button_status);
+    group.add(&button_text);
     group.set_input_event_handler(&button_group_handler);
 
-    gui->add("buttons", (mgui_object*)&group);
+    gui->add("main", (mgui_object*)&group);
 }
 
 int main()
@@ -248,9 +298,10 @@ int main()
     // register gui views
     test_menu(&gui);
     test_main(&gui);
+    test_text(&gui);
 
     // select registered gui
-    gui.select("buttons");
+    gui.select("main");
 
     while (true) {
         disp.render(gui.lcd());

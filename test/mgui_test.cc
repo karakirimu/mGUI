@@ -51,6 +51,36 @@ namespace Basic {
         EXPECT_EQ(str2.length(), 5);
 
         EXPECT_FALSE(str == str2);
+
+        mgui_string str3("This is long text sample.");
+        EXPECT_EQ(str3[0], 'T');
+        EXPECT_EQ(str3[1], 'h');
+        EXPECT_EQ(str3[2], 'i');
+        EXPECT_EQ(str3[3],'s');
+        EXPECT_EQ(str3[4],' ');
+        EXPECT_EQ(str3[5], 'i');
+        EXPECT_EQ(str3[6],'s');
+        EXPECT_EQ(str3[7], ' ');
+        EXPECT_EQ(str3[8], 'l');
+        EXPECT_EQ(str3[9], 'o');
+        EXPECT_EQ(str3[10], 'n');
+        EXPECT_EQ(str3[11], 'g');
+        EXPECT_EQ(str3[12],' ');
+        EXPECT_EQ(str3[13], 't');
+        EXPECT_EQ(str3[14], 'e');
+        EXPECT_EQ(str3[15], 'x');
+        EXPECT_EQ(str3[16], 't');
+        EXPECT_EQ(str3[17],' ');
+        EXPECT_EQ(str3[18],'s');
+        EXPECT_EQ(str3[19], 'a');
+        EXPECT_EQ(str3[20], 'm');
+        EXPECT_EQ(str3[21], 'p');
+        EXPECT_EQ(str3[22], 'l');
+        EXPECT_EQ(str3[23], 'e');
+        EXPECT_EQ(str3[24], '.');
+        EXPECT_EQ(str3[25], '\0');
+        
+        EXPECT_EQ(str3.length(), 25);
     }
 
     TEST(String, assign) {

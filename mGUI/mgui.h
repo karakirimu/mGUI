@@ -3,7 +3,7 @@
  * @author karakirimu
  * @brief Simple monochrome GUI operation program
  * @version 0.1
- * @date 2024-01-21
+ * @date 2024-04-06
  * 
  * @copyright Copyright (c) 2024 karakirimu
  * 
@@ -1123,18 +1123,19 @@ private:
 class mgui_object {
 public:
     /**
-     * @brief 
-     * Specify a unique object name in the inherited class
+     * @brief Specify a unique object name in the inherited class
      * @return Name of object registered in enum
      */
     virtual mgui_object_type type() const = 0;
 
     /**
      * @brief 
-     * Set up drawing process for objects in inherited classes
+     * The inherited class configures the drawing operations required by that object.
+     * This is executed every time the mgi::update_lcd() function is called.
+     * 
      * @param draw Objects that provide a method for drawing
      * @param input_state Current input state
-     * @param current_group 
+     * @param current_group The name of the group that the object is currently being drawn in
      */
     virtual void update(mgui_draw* draw, mgui_input_state *input_state, mgui_string* current_group) = 0;
 };
@@ -1205,6 +1206,9 @@ public:
     mgui_input_state* get_input_result() { return input_data_; }
 
 private:
+    /**
+     * @brief Deletes all dynamically allocated memory used by the input_data_.
+     */
     void clear_data() {
         if (input_data_) {
             delete[] input_data_;
@@ -1756,11 +1760,11 @@ public:
     inline bool fill() const { return fill_; }
     inline void set_fill(bool fill) { fill_ = fill; }
 
-    inline uint16_t width() const { return width_; }
-    inline void set_width(uint16_t width) { width_ = width; }
+    inline uint16_t width() const { return width_ - 1; }
+    inline void set_width(uint16_t width) { width_ = (width + 1); }
 
-    inline uint16_t height() const { return height_; }
-    inline void set_height(uint16_t height) { height_ = height; }
+    inline uint16_t height() const { return height_ - 1; }
+    inline void set_height(uint16_t height) { height_ = (height + 1); }
 
     inline uint16_t x() const { return x_; }
     inline void set_x(uint16_t x) { x_ = x; }
@@ -1868,6 +1872,11 @@ public:
         if (text) {
             set_text(text);
         }
+        view_width_ = 0;
+        view_height_ = 0;
+        moved_amount_of_movement_ = 0;
+        moved_per_frame_ = 0;
+        frame_counter_ = 0;
         invert_ = false;
     }
 
@@ -1879,9 +1888,14 @@ public:
         if (this != &other) {
             this->x_ = other.x_;
             this->y_ = other.y_;
-            this->width_ = other.width_;
-            this->height_ = other.height_;
+            this->text_width_ = other.text_width_;
+            this->text_height_ = other.text_height_;
+            this->view_width_ = other.view_width_;
+            this->view_height_ = other.view_height_;
+            this->moved_amount_of_movement_ = other.moved_amount_of_movement_;
+            this->moved_per_frame_ = other.moved_per_frame_;
             this->invert_ = other.invert_;
+            this->frame_counter_ = other.frame_counter_;
             this->text_property_ = other.text_property_;
         }
         return *this;
@@ -1890,8 +1904,12 @@ public:
     bool operator==(const mgui_text& other) {
         return this->x_ == other.x_
             && this->y_ == other.y_
-            && this->width_ == other.width_
-            && this->height_ == other.height_
+            && this->text_width_ == other.text_width_
+            && this->text_height_ == other.text_height_
+            && this->view_width_ == other.view_width_
+            && this->view_height_ == other.view_height_
+            && this->moved_amount_of_movement_ == other.moved_amount_of_movement_
+            && this->moved_per_frame_ == other.moved_per_frame_
             && this->invert_ == other.invert_
             && this->text_property_ == other.text_property_;
     }
@@ -1899,23 +1917,68 @@ public:
     mgui_object_type type() const { return mgui_object_type::Text; }
     
     void update(mgui_draw* draw, mgui_input_state*, mgui_string*) {
-        for(int i = 0; i < text_property_->get_text_length(); i++) {
-            int x0 = x_ + font()->font_width() * i;
-            draw->draw_char(font(), x0, y_, text_property_->get_text_index(i), invert_);
+
+        if(move_ && 0 < view_width_ && view_width_ < text_width_) {
+            
+            int first_char = moved_x_counter_ / font()->font_width();
+            int first_pos = moved_x_counter_ % font()->font_width();
+            int end_char = view_width_ / font()->font_width() + first_char;
+            int end_pos = view_width_ % font()->font_width();
+
+            for(int i = first_char; i <= end_char; i++) {
+                int x0 = x_ + font()->font_width() * (i - first_char);
+                if(i == first_char){
+                    // first character
+                    draw->draw_char(font(), x0, y_, text_property_->get_text_index(i), invert_, first_pos);
+                } else if(i == end_char) {
+                    // last character
+                    draw->draw_char(font(), x0, y_, text_property_->get_text_index(i), invert_, 0, 0, end_pos);
+
+                } else {
+                    draw->draw_char(font(), x0, y_, text_property_->get_text_index(i), invert_);
+                }
+            }
+
+            if(frame_counter_ == moved_per_frame_){
+                moved_x_counter_+=moved_amount_of_movement_;            
+                if((text_width_- moved_x_counter_) < view_width_) {
+                    moved_x_counter_ = 0;
+                }
+                frame_counter_ = 0;
+            }
+
+            frame_counter_++;
+
+        } else {
+
+            for(int i = 0; i < text_property_->get_text_length(); i++) {
+                int x0 = x_ + font()->font_width() * i;
+                draw->draw_char(font(), x0, y_, text_property_->get_text_index(i), invert_);
+            }
         }
     }
 
     inline char* text() const { return text_property_->get_text(); }
     inline void set_text(const char* text) {
         text_property_->set_text(text);
-        width_ = font()->font_width() * text_property_->get_text_length();
-        height_ = font()->font_height();
+        text_width_ = font()->font_width() * text_property_->get_text_length();
+        text_height_ = font()->font_height();
     }
 
     inline int text_length() { return text_property_->get_text_length(); }
 
-    inline uint16_t width() const { return width_; }
-    inline uint16_t height() const { return height_; }
+    inline uint16_t text_width() const { return text_width_; }
+    inline uint16_t text_height() const { return text_height_; }
+
+    inline uint16_t view_width() const { return view_width_; }
+    inline void set_view_width(uint16_t view_width) { 
+        view_width_ = view_width;
+    }
+
+    inline uint16_t view_height() const { return view_height_; }
+    inline void set_view_height(uint16_t view_height) { 
+        view_height_ = view_height;
+    }
 
     inline uint16_t x() const { return x_; }
     inline void set_x(uint16_t x) { x_ = x; }
@@ -1928,13 +1991,29 @@ public:
     inline bool invert() const { return invert_; }
     inline void set_invert(bool invert) { invert_ = invert; }
 
-private:
+    inline bool move() const { return move_; }
 
-    uint16_t width_;
-    uint16_t height_;
+    inline void set_move(bool move, uint8_t per_frame = 1, uint8_t amount_of_movement = 1) {  
+        move_ = move;
+        moved_per_frame_ = per_frame;
+        moved_amount_of_movement_ = amount_of_movement;
+        moved_x_counter_ = 0;
+    }
+
+private:
+    uint16_t moved_x_counter_;
+
+    uint16_t text_width_;
+    uint16_t text_height_;
+    uint16_t view_width_;
+    uint16_t view_height_;
     uint16_t x_;
     uint16_t y_;
     bool invert_;
+    bool move_;
+    uint8_t moved_per_frame_;
+    uint8_t moved_amount_of_movement_;
+    int frame_counter_;
     mgui_text_property *text_property_;
 };
 
@@ -2080,18 +2159,33 @@ class mgui_button : public mgui_core_ui {
      inline mgui_padding_property padding() const { return padding_; }
 
      inline uint16_t width() const { return rect_.width(); }
-     inline void set_width(uint16_t width) { rect_.set_width(width); }
+     inline void set_width(uint16_t width) {
+         rect_.set_width(width);
+         if (text_) {
+             text_->set_view_width(width);
+             update_property();
+         }
+     }
 
      inline uint16_t height() const { return rect_.height(); }
-     inline void set_height(uint16_t height) { rect_.set_height(height); }
+     inline void set_height(uint16_t height) {
+         rect_.set_height(height);
+         if (text_) {
+             text_->set_view_height(height);
+             update_property();
+         }
+     }
 
      inline uint16_t radius() const { return rect_.radius(); }
      inline void set_radius(uint16_t r) { rect_.set_radius(r); }
 
  private:
      inline void update_property() {
-         uint16_t rect_w = text_->width() + padding_.left() + padding_.right();
-         uint16_t rect_h = text_->height() + padding_.up() + padding_.down();
+         uint16_t rect_w = text_->view_width() > 0 ? text_->view_width() : text_->text_width();
+         uint16_t rect_h = text_->view_height() > 0 ? text_->view_height() : text_->text_height();
+
+         rect_w += padding_.left() + padding_.right();
+         rect_h += padding_.up() + padding_.down();
 
          uint16_t rx = rect_.x();
          uint16_t ry = rect_.y();
