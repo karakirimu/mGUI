@@ -108,7 +108,7 @@ public:
     virtual ~font_16x8() {}
 
     int search(const char *c){
-        int buf_size = (font_height() >> 3) * font_width();
+        int buf_size = (height() >> 3) * width();
         int index = 0;
         for (char i = ' '; i <= '~'; i++) {
             if(i == *c){

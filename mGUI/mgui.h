@@ -35,7 +35,9 @@ enum mgui_object_type {
     Pixel,
     Line,
     Text,
+    Image,
     Button,
+    VerticalScroll,
     MenuItem,
     Menu,
     UiGroup
@@ -332,7 +334,8 @@ private:
 class mgui_string {
 public:
     mgui_string() {
-        clear();
+        str_length_ = 0;
+        str_ = nullptr;
     }
 
     mgui_string(const char* str) {
@@ -340,9 +343,7 @@ public:
     }
 
     mgui_string(const mgui_string& other) {
-        clear();
-        str_ = other.str_;
-        str_length_ = other.str_length_;
+        build(other.c_str());
     }
 
     ~mgui_string() {
@@ -366,6 +367,10 @@ public:
     }
 
     mgui_string operator=(const mgui_string& other) noexcept {
+        if (this->str_ != nullptr) {
+            clear();
+        }
+        
         if (this != &other) {
             build(other.c_str());
         }
@@ -422,10 +427,10 @@ private:
      * Initialize string settings and memory release.
      */
     inline void clear() {
-        str_ = nullptr;
         str_length_ = 0;
         if (str_) {
             delete[] str_;
+            str_ = nullptr;
         }
     }
 
@@ -607,13 +612,63 @@ private:
 };
 
 /**
+ * @brief A class representing an image.
+ */
+class mgui_image_property {
+public:
+    /**
+     * @brief Construct a new mgui_image object
+     *
+     * @param width The width of the image
+     * @param height The height of the image
+     * @param resource A pointer to the image data
+     */
+    explicit mgui_image_property(const uint16_t width, const uint16_t height, const uint8_t* resource) {
+        image_width_ = width;
+        image_height_ = height;
+        resource_ = resource;
+    }
+
+    /**
+     * @brief Destroy the mgui_image object
+     */
+    ~mgui_image_property() = default;
+
+    /**
+     * @brief Get the width of the image
+     *
+     * @return The width of the image
+     */
+    inline uint16_t width() const { return image_width_; }
+
+    /**
+     * @brief Get the height of the image
+     *
+     * @return The height of the image
+     */
+    inline uint16_t height() const { return image_height_; }
+
+    /**
+     * @brief Get a pointer to the image data
+     *
+     * @return A pointer to the image data
+     */
+    inline const uint8_t* resource() const { return resource_; }
+
+private:
+    uint16_t image_width_;
+    uint16_t image_height_;
+    const uint8_t* resource_;
+};
+
+/**
  * @brief
  * This class is a common class that manages font resources (buffers)
  * with fixed width and height.
  * When using this class, define a class that inherits from this class
  * and set the value of each attribute.
  */
-class mgui_font {
+class mgui_font : public mgui_image_property {
 public:
 
     /**
@@ -623,30 +678,9 @@ public:
      * @param h Font height to be set for the resource
      * @param resource Array of font data with specified width and height
      */
-    explicit mgui_font(const uint16_t w, const uint16_t h, const uint8_t* resource) {
-        font_width_ = w;
-        font_height_ = h;
-        resource_ = resource;
-    }
+    explicit mgui_font(const uint16_t w, const uint16_t h, const uint8_t* resource)
+     : mgui_image_property(w, h, resource) {};
     virtual ~mgui_font() {}
-
-    /**
-     * @brief It returns font width
-     * @return Font width
-     */
-    inline uint16_t font_width() const { return font_width_; }
-
-    /**
-     * @brief It returns font height
-     * @return Font height
-     */
-    inline uint16_t font_height() const { return font_height_; }
-
-    /**
-     * @brief It returns the configured resource
-     * @return configured resource pointer
-     */
-    inline const uint8_t* resource() const { return resource_; }
 
     /**
      * @brief
@@ -656,11 +690,37 @@ public:
      * Position of the first array of font resources corresponding to the character to be searched for.
      */
     virtual int search(const char* c) = 0;
+};
 
-private:
-    uint16_t font_width_;
-    uint16_t font_height_;
-    const uint8_t* resource_;
+/**
+ * @brief
+ * This class is a common class that manages font resources (buffers)
+ * with fixed width and height.
+ * When using this class, define a class that inherits from this class
+ * and set the value of each attribute.
+ */
+class mgui_font_w : public mgui_image_property {
+public:
+
+    /**
+     * @brief Construct a new font property object
+     *
+     * @param w Font width to be set for the resource
+     * @param h Font height to be set for the resource
+     * @param resource Array of font data with specified width and height
+     */
+    explicit mgui_font_w(const uint16_t w, const uint16_t h, const uint8_t* resource)
+     : mgui_image_property(w, h, resource) {};
+    virtual ~mgui_font_w() {}
+
+    /**
+     * @brief
+     * Function to retrieve the first array position of the string resource corresponding to the set character
+     * @param c Character to search
+     * @return
+     * Position of the first array of font resources corresponding to the character to be searched for.
+     */
+    virtual int search(const wchar_t* c) = 0;
 };
 
 /**
@@ -954,13 +1014,29 @@ public:
                           const int& font_end_x = 0,
                           const int& font_end_y = 0) {
         
-        int x_end = ((font_end_x == 0)? font->font_width() : font_end_x);
-        int y_end = ((font_end_y == 0)? font->font_height() : font_end_y);
+        int x_end = ((font_end_x == 0)? font->width() : font_end_x);
+        int y_end = ((font_end_y == 0)? font->height() : font_end_y);
 
         for (int y1 = font_start_y; y1 < y_end; y1++) {
             for (int x1 = font_start_x; x1 < x_end; x1++) {
-                int pos = index + y1 / 8 * font->font_width() + x1;
+                int pos = index + y1 / 8 * font->width() + x1;
                 bool checkbit = check_bit_on(x1, y1, font->resource()[pos]);
+                if (checkbit) {
+                    draw_pixel(x + x1, y + y1, (invert) ? !checkbit : checkbit);
+                }
+            }
+        }
+    }
+
+    inline void draw_image(const mgui_image_property *image,
+                          const int& x,
+                          const int& y,
+                          bool invert = false) {
+        
+        for (int y1 = 0; y1 < image->height(); y1++) {
+            for (int x1 = 0; x1 < image->width(); x1++) {
+                int pos = y1 / 8 * image->width() + x1;
+                bool checkbit = check_bit_on(x1, y1, image->resource()[pos]);
                 if (checkbit) {
                     draw_pixel(x + x1, y + y1, (invert) ? !checkbit : checkbit);
                 }
@@ -1760,11 +1836,11 @@ public:
     inline bool fill() const { return fill_; }
     inline void set_fill(bool fill) { fill_ = fill; }
 
-    inline uint16_t width() const { return width_ - 1; }
-    inline void set_width(uint16_t width) { width_ = (width + 1); }
+    inline uint16_t width() const { return width_; }
+    inline void set_width(uint16_t width) { width_ = width; }
 
-    inline uint16_t height() const { return height_ - 1; }
-    inline void set_height(uint16_t height) { height_ = (height + 1); }
+    inline uint16_t height() const { return height_; }
+    inline void set_height(uint16_t height) { height_ = height; }
 
     inline uint16_t x() const { return x_; }
     inline void set_x(uint16_t x) { x_ = x; }
@@ -1853,6 +1929,71 @@ private:
 };
 
 /**
+ * @brief It draws image.
+ */
+class mgui_image : mgui_object {
+public:
+    /**
+     * @brief Construct a new mgui text object
+     * 
+     * @param font The inherited class of mgui_font_property
+     * @param text Text to display
+     * @param x X position in the upper left corner where mgui_font_property resource is displayed
+     * @param y Y position in the upper left corner where mgui_font_property resource is displayed
+     */
+    explicit mgui_image(mgui_image_property *image, uint16_t x = 0, uint16_t y = 0) {
+        x_ = x;
+        y_ = y;
+        invert_ = false;
+        image_property_ = image;
+    }
+
+    virtual ~mgui_image() {}
+
+    mgui_image operator=(const mgui_image& other) noexcept {
+        if (this != &other) {
+            this->x_ = other.x_;
+            this->y_ = other.y_;
+            this->invert_ = other.invert_;
+            this->image_property_ = other.image_property_;
+        }
+        return *this;
+    }
+
+    bool operator==(const mgui_image& other) {
+        return this->x_ == other.x_
+            && this->y_ == other.y_
+            && this->invert_ == other.invert_
+            && this->image_property_ == other.image_property_;
+    }
+
+    mgui_object_type type() const { return mgui_object_type::Image; }
+    
+    void update(mgui_draw* draw, mgui_input_state*, mgui_string*) {
+        draw->draw_image(image_property_, x_, y_, invert_);
+    }
+
+    inline uint16_t width() const { return image_property_->width(); }
+    inline uint16_t height() const { return image_property_->height(); }
+
+    inline uint16_t x() const { return x_; }
+    inline void set_x(uint16_t x) { x_ = x; }
+
+    inline uint16_t y() const { return y_; }
+    inline void set_y(uint16_t y) { y_ = y; }
+
+    inline bool invert() const { return invert_; }
+    inline void set_invert(bool invert) { invert_ = invert; }
+
+private:
+
+    uint16_t x_;
+    uint16_t y_;
+    bool invert_;
+    mgui_image_property *image_property_;
+};
+
+/**
  * @brief It draws text.
  */
 class mgui_text : mgui_object {
@@ -1874,10 +2015,12 @@ public:
         }
         view_width_ = 0;
         view_height_ = 0;
+        move_ = false;
         moved_amount_of_movement_ = 0;
         moved_per_frame_ = 0;
         frame_counter_ = 0;
         invert_ = false;
+        moved_x_counter_ = 0;
     }
 
     ~mgui_text() {
@@ -1920,13 +2063,13 @@ public:
 
         if(move_ && 0 < view_width_ && view_width_ < text_width_) {
             
-            int first_char = moved_x_counter_ / font()->font_width();
-            int first_pos = moved_x_counter_ % font()->font_width();
-            int end_char = view_width_ / font()->font_width() + first_char;
-            int end_pos = view_width_ % font()->font_width();
+            int first_char = moved_x_counter_ / font()->width();
+            int first_pos = moved_x_counter_ % font()->width();
+            int end_char = view_width_ / font()->width() + first_char;
+            int end_pos = view_width_ % font()->width();
 
-            for(int i = first_char; i <= end_char; i++) {
-                int x0 = x_ + font()->font_width() * (i - first_char);
+            for(int i = first_char; i < end_char; i++) {
+                int x0 = x_ + font()->width() * (i - first_char);
                 if(i == first_char){
                     // first character
                     draw->draw_char(font(), x0, y_, text_property_->get_text_index(i), invert_, first_pos);
@@ -1950,9 +2093,15 @@ public:
             frame_counter_++;
 
         } else {
+            int view_length = view_width_ / font()->width();
+            if(view_length > 0){
+                view_length = text_property_->get_text_length() < view_length ? text_property_->get_text_length() : view_length;
+            }else{
+                view_length = text_property_->get_text_length();
+            }
 
-            for(int i = 0; i < text_property_->get_text_length(); i++) {
-                int x0 = x_ + font()->font_width() * i;
+            for(int i = 0; i < view_length; i++) {
+                int x0 = x_ + font()->width() * i;
                 draw->draw_char(font(), x0, y_, text_property_->get_text_index(i), invert_);
             }
         }
@@ -1961,8 +2110,8 @@ public:
     inline char* text() const { return text_property_->get_text(); }
     inline void set_text(const char* text) {
         text_property_->set_text(text);
-        text_width_ = font()->font_width() * text_property_->get_text_length();
-        text_height_ = font()->font_height();
+        text_width_ = font()->width() * text_property_->get_text_length();
+        text_height_ = font()->height();
     }
 
     inline int text_length() { return text_property_->get_text_length(); }
@@ -2320,12 +2469,12 @@ public:
      * This function is automatically assigned by mgui_menu and is not used directly
      * 
      * @param index Setting display position in item
-     * @param item_count number of items on screen
+     * @param item_view_count number of items on screen
      * @param screen_width
      * @param screen_height
      */
-    inline void _set_draw_position(uint16_t index, uint16_t item_count, uint16_t screen_width, uint16_t screen_height) {
-        uint16_t h = screen_height / item_count;
+    inline void _set_draw_position(uint16_t index, uint16_t item_view_count, uint16_t screen_width, uint16_t screen_height) {
+        uint16_t h = screen_height / item_view_count;
         rect_.set_x(0);
         rect_.set_y(h * index);
         rect_.set_width(screen_width);
@@ -2378,6 +2527,7 @@ public:
             text_->set_x(text_rel_x_);
         }
         text_->set_y(rect_.y() + text_rel_y_);
+        text_->set_view_width(screen_width);
     }
 
     inline mgui_text* text() const { return text_; }
@@ -2472,12 +2622,12 @@ private:
 
 class mgui_menu : mgui_object {
 public:
-    explicit mgui_menu(const uint16_t width, const uint16_t height, const uint16_t item_count = 4){
+    explicit mgui_menu(const uint16_t width, const uint16_t height, const uint16_t item_view_count = 4){
         moved_from_ = new mgui_stack<mgui_menu_property>();
         window_width_ = width;
         window_height_ = height;
         item_first_node_ = nullptr;
-        item_count_ = item_count;
+        item_view_count_ = item_view_count;
         on_return_ = false;
         on_enter_ = false;
         input_event_callback_ = nullptr;
@@ -2492,7 +2642,7 @@ public:
             this->window_width_ = other.window_width_;
             this->window_height_ = other.window_height_;
             this->item_first_node_ = other.item_first_node_;
-            this->item_count_ = other.item_count_;
+            this->item_view_count_ = other.item_view_count_;
             this->on_return_ = other.on_return_;
             this->on_enter_ = other.on_enter_;
             this->input_event_callback_ = other.input_event_callback_;
@@ -2508,11 +2658,11 @@ public:
         }
 
         mgui_list_node<mgui_menu_item*>* node = item_first_node_;
-        for (int i = 0; i < item_count_; i++) {
+        for (int i = 0; i < item_view_count_; i++) {
             if (node == nullptr) {
                 break;
             }
-            node->obj->_set_draw_position(i, item_count_, window_width_, window_height_);
+            node->obj->_set_draw_position(i, item_view_count_, window_width_, window_height_);
             node->obj->update(draw, input, current_group);
             node = node->next;
         }
@@ -2542,7 +2692,7 @@ public:
     inline uint16_t selected_index() const { return p.selected_index_; }
     inline void set_selected_index(uint16_t index_){
         p.selected_index_ = index_;
-        int first = ((index_ + 1 - item_count_) > 0)? index_ + 1 - item_count_ : 0;
+        int first = ((index_ + 1 - item_view_count_) > 0)? index_ + 1 - item_view_count_ : 0;
 
         if (first < p.menu_item_.count()) {
             item_first_node_ = p.menu_item_.get_node(first);
@@ -2663,8 +2813,10 @@ public:
          input_event_callback_ = event_callback;
      }
 
-    inline uint16_t item_count() const { return item_count_; }
-    inline void set_item_count(uint16_t item_count) { item_count_ = item_count; }
+    inline uint16_t item_view_count() const { return item_view_count_; }
+    inline void set_item_view_count(uint16_t item_view_count) { item_view_count_ = item_view_count; }
+
+    inline int menu_item_count() const { return p.menu_item_.count(); }
 
     inline uint16_t width() const { return window_width_; }
     inline void set_width(uint16_t width) { window_width_ = width; }
@@ -2678,7 +2830,7 @@ private:
     bool on_enter_;
 
     mgui_list_node<mgui_menu_item*>* item_first_node_;
-    uint16_t item_count_;
+    uint16_t item_view_count_;
     uint16_t window_height_;
     uint16_t window_width_;
     mgui_menu_property p;
@@ -2856,6 +3008,141 @@ private:
 
     mgui_list<mgui_core_ui*>* list;
     uint16_t selected_index_;
+};
+
+class mgui_vertical_scrollbar : public mgui_object {
+public:
+    mgui_vertical_scrollbar() {
+        current_index_ = 0;
+        count_ = 0;
+        full_cursor_height_ = 0;
+        cursor_.set_fill(true);
+        input_event_callback_ = nullptr;
+    }
+
+    explicit mgui_vertical_scrollbar(uint16_t x, uint16_t y, uint16_t width, uint16_t height, int count)
+        : mgui_vertical_scrollbar(){
+        set_x(x);
+        set_y(y);
+        set_width(width);
+        set_height(height);
+        set_count(count);
+    }
+
+    ~mgui_vertical_scrollbar() {}
+
+    mgui_object_type type() const { return mgui_object_type::VerticalScroll; };
+
+    /**
+     * @brief Set the input event handler object
+     *
+     * @param event_callback
+     * Implement functions to change the state of the gui and operate other non-gui functions
+     * using functions set in mgui_menu using the value of mgui_input_state
+     * (the result of input reading set in mgui_input).
+     * The set function is called each time before drawing is updated.
+     */
+    inline void set_input_event_handler(
+        void (*event_callback)(mgui_vertical_scrollbar* sender, const mgui_input_state state[], mgui_string* current_group)) {
+        input_event_callback_ = event_callback;
+    }
+
+    void update(mgui_draw* draw, mgui_input_state* input, mgui_string* current_group) {
+        if (count_ < 1) {
+            return;
+        }
+
+        if (input_event_callback_) {
+            input_event_callback_(this, input, current_group);
+        }
+
+        frame_.update(draw, input, current_group);
+        uint16_t y = 2 + full_cursor_height_ * current_index_ / count_;
+        cursor_.set_y(y);
+        cursor_.update(draw, input, current_group);
+    }
+
+    inline void set_count(const int count) {
+        count_ = count;
+        full_cursor_height_ = frame_.height() - 4;
+        uint16_t cursor_height_ = full_cursor_height_ / count;
+        cursor_height_ = cursor_height_ > 0 ? cursor_height_ : full_cursor_height_;
+        cursor_.set_height(cursor_height_);
+    }
+
+    /**
+     * @brief
+     * Change the element selection to one after the other. If there is no element
+     * later than the currently selected element, nothing is done.
+     *
+     * @param on_select_next
+     * If true, set the flag to set the element one element later; if false, do nothing.
+     */
+    inline void set_on_select_next(bool on_select_next) {
+        if (!on_select_next) {
+            return;
+        }
+        if (current_index_ < (count_ - 1)) {
+            current_index_++;
+        }
+    }
+
+    /**
+     * @brief
+     * Changes the selection of an element to the one before it. If no element
+     * precedes the currently selected element, nothing is done.
+     *
+     * @param on_select_prev
+     * If true, set the flag to set the element to one previous element; if false, do nothing.
+     */
+    inline void set_on_select_prev(bool on_select_prev) {
+        if (!on_select_prev) {
+            return;
+        }
+
+        if (current_index_ > 0) {
+            current_index_--;
+        }
+    }
+    inline uint16_t current_index() const { return current_index_; }
+
+    inline uint16_t radius() const { return frame_.radius(); }
+    inline void set_radius(uint16_t r) {
+        frame_.set_radius(r);
+        cursor_.set_radius(r - 1);
+    }
+
+    /**
+     *  > 5
+     */
+    inline uint16_t width() const { return frame_.width(); }
+    inline void set_width(uint16_t width) {
+        frame_.set_width(width);
+        cursor_.set_width(width - 4);
+    }
+
+    inline uint16_t height() const { return frame_.height(); }
+    inline void set_height(uint16_t height) { frame_.set_height(height); }
+
+    inline uint16_t x() const { return frame_.x(); }
+    inline void set_x(uint16_t x) {
+        frame_.set_x(x);
+        cursor_.set_x(x + 2);
+    }
+
+    inline uint16_t y() const { return frame_.y(); }
+    inline void set_y(uint16_t y) {
+        frame_.set_y(y);
+        cursor_.set_y(y + 2);
+    }
+
+private:
+    void (*input_event_callback_)(mgui_vertical_scrollbar* sender, const mgui_input_state state[], mgui_string* current_group);
+    mgui_rectangle frame_;
+    mgui_rectangle cursor_;
+    uint16_t full_cursor_height_;
+    uint16_t current_index_;
+    uint16_t count_;
 };
 
 #endif // MGUI_H

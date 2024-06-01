@@ -99,6 +99,23 @@ namespace Basic {
         EXPECT_TRUE(str == copy);
     }
 
+    TEST(String, re_assign) {
+        mgui_string str("test2");
+        mgui_string copy("test3");
+        copy = str;
+
+        EXPECT_EQ(copy[0], 't');
+        EXPECT_EQ(copy[1], 'e');
+        EXPECT_EQ(copy[2], 's');
+        EXPECT_EQ(copy[3], 't');
+        EXPECT_EQ(copy[4], '2');
+        EXPECT_EQ(copy[5], '\0');
+
+        EXPECT_EQ(copy.length(), 5);
+
+        EXPECT_TRUE(str == copy);
+    }
+
     TEST(List, Order) {
         mgui_list<int> test;
 
@@ -998,5 +1015,22 @@ namespace UserInterface {
     
         g.update_lcd();
         // debug_print(g.lcd()); // OK
+    }
+
+    TEST(VerticalScrollbarTest, Show) {
+        mgui_vertical_scrollbar scroll;
+
+        scroll.set_count(4);
+        EXPECT_EQ(scroll.current_index(), 0);
+        scroll.set_on_select_prev(true);
+        EXPECT_EQ(scroll.current_index(), 0);
+        scroll.set_on_select_next(true);
+        EXPECT_EQ(scroll.current_index(), 1);
+        scroll.set_on_select_next(true);
+        EXPECT_EQ(scroll.current_index(), 2);
+        scroll.set_on_select_next(true);
+        EXPECT_EQ(scroll.current_index(), 3);
+        scroll.set_on_select_next(true);
+        EXPECT_EQ(scroll.current_index(), 3);
     }
 }
