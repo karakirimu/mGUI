@@ -15,6 +15,25 @@
 
 const uint sm = 0;
 
+const unsigned char TEST_IMAGE[] = {
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x0f,0x0f,0x0f,0x0f,0x0f,0x0f,0x0f,
+    0xff,0xff,0xff,0xff,0x0f,0x0f,0x0f,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x01,0xff,0xff,0xff,0xff,0x7c,0x7c,
+    0x3c,0x3c,0xff,0xff,0xff,0xff,0x01,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x03,0x0f,0x0f,0x3f,0x3f,
+    0xfd,0xff,0xff,0xff,0xdf,0x9d,0x1c,0x1f,
+    0x1f,0x1f,0x9f,0xdf,0xff,0xff,0xff,0xff,
+    0x3f,0x3f,0x0f,0x0f,0x03,0x00,0x00,0x00,
+    0x00,0x00,0xfc,0xfe,0xff,0xff,0x9f,0x3f,
+    0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+    0xff,0xff,0x1f,0x0f,0x1f,0xbf,0xff,0xff,
+    0xff,0xff,0xff,0xff,0xfe,0xfc,0x00,0x00
+};
+
 static void button_gpio_init() {
     gpio_init(BUTTON_GPIO);
     gpio_set_dir(BUTTON_GPIO, GPIO_IN);
@@ -252,33 +271,43 @@ static void move_to_test_text(const mgui_button* sender, const mgui_input_state 
     button_state = state[0].value_1;
 }
 
-static void test_selector(mgui_multi* gui) {
-    
+static void move_to_test_image(const mgui_button* sender, const mgui_input_state state[], mgui_string* current_group) {
+    static int button_state = state[0].value_1;
+
+    // 0 -> 1 edge
+    if (button_state < state[0].value_1) {
+        // change gui group
+        *current_group = "image";
+    }
+
+    button_state = state[0].value_1;
+}
+
+static void test_image(mgui_multi* gui) {
     static font_16x8 font;
-    static mgui_button button_menu(10, 2);
-    static mgui_text menu_text(&font, "menu");
-    button_menu.set_text(&menu_text);
-    button_menu.set_padding(4,0,4,0);
-    button_menu.set_input_event_handler(&move_to_test_menu);
 
-    static mgui_button button_status(64, 2);
-    static mgui_text status_text(&font, "status");
-    button_status.set_text(&status_text);
-    button_status.set_padding(4,0,4,0);
+    static mgui_menu_item item8;
+    static mgui_text text8(&font, "Return");
+    item8.set_text(&text8);
+    item8.set_input_event_handler(&menu_return_handler);
 
-    static mgui_button button_text(10, 24);
-    static mgui_text text_text(&font, "texts");
-    button_text.set_text(&text_text);
-    button_text.set_padding(4,0,4,0);
-    button_text.set_input_event_handler(&move_to_test_text);
+    static mgui_menu menu(SSD1306_WIDTH, SSD1306_HEIGHT);
+    menu.set_input_event_handler(&menu_handler);
+    menu.add(&item8);
 
-    static mgui_ui_group group;
-    group.add(&button_menu);
-    group.add(&button_status);
-    group.add(&button_text);
-    group.set_input_event_handler(&button_group_handler);
+    gui->add("image", (mgui_object*)&menu);
 
-    gui->add("selector", (mgui_object*)&group);
+    static mgui_text long_text(&font, "This is long text sample.");
+    long_text.set_x(0);
+    long_text.set_y(16);
+    long_text.set_view_height(font.height());
+    long_text.set_view_width(SSD1306_WIDTH);
+    long_text.set_move(true, 2);
+
+    static mgui_image_property image_prop(32,32, TEST_IMAGE);
+    static mgui_image image(&image_prop, 48, 20);
+
+    gui->add("image", (mgui_object*)&image);
 }
 
 static void test_main(mgui_multi* gui) {
@@ -290,10 +319,11 @@ static void test_main(mgui_multi* gui) {
     button_menu.set_padding(4,0,4,0);
     button_menu.set_input_event_handler(&move_to_test_menu);
 
-    static mgui_button button_status(64, 2);
-    static mgui_text status_text(&font, "status");
-    button_status.set_text(&status_text);
-    button_status.set_padding(4,0,4,0);
+    static mgui_button button_image(64, 2);
+    static mgui_text status_text(&font, "image");
+    button_image.set_text(&status_text);
+    button_image.set_padding(4,0,4,0);
+    button_image.set_input_event_handler(&move_to_test_image);
 
     static mgui_button button_text(10, 24);
     static mgui_text text_text(&font, "texts");
@@ -303,7 +333,7 @@ static void test_main(mgui_multi* gui) {
 
     static mgui_ui_group group;
     group.add(&button_menu);
-    group.add(&button_status);
+    group.add(&button_image);
     group.add(&button_text);
     group.set_input_event_handler(&button_group_handler);
 
@@ -339,6 +369,7 @@ int main()
     test_menu(&gui);
     test_main(&gui);
     test_text(&gui);
+    test_image(&gui);
 
     // select registered gui
     gui.select("main");
