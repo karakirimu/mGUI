@@ -3,7 +3,7 @@
  * @author karakirimu
  * @brief Simple monochrome GUI operation program
  * @version 0.1
- * @date 2024-04-06
+ * @date 2024-07-26
  * 
  * @copyright Copyright (c) 2024 karakirimu
  * 
@@ -18,28 +18,86 @@ typedef unsigned short uint16_t;
 // prototype declare
 class mgui_menu_item;
 
-// constants
+/**
+ * @brief The size of the hash table used in the mgui_string_map class.
+ *
+ * This constant specifies the number of buckets in the hash table used by the
+ * mgui_string_map class to store key-value pairs. Increasing this value can
+ * improve the performance of the hash table, but it may also increase memory
+ * usage.
+ */
 constexpr int HASH_TABLE_SIZE = 20;
 
-// enums
+/**
+ * @brief Enumeration representing the direction for drawing a straight line.
+ *
+ * This enumeration is used as a parameter of the drawing function to specify the
+ * direction of the straight line to be drawn.
+ */
 enum mgui_draw_line_dir {
+    /**
+     * @brief Draw a straight line from left to right
+     */
     Left,
+    /**
+     * @brief Draw a straight line from top to bottom
+     */
     Down
 };
 
-// List of object types that use drawing functions
+/**
+ * @brief List of object types that use drawing functions
+ *
+ * its corresponding drawing function.
+ */
 enum mgui_object_type {
+    /**
+     * @brief Rectangle drawing function
+     */
     Rectangle,
+    /**
+     * @brief Circle drawing function
+     */
     Circle,
+    /**
+     * @brief Triangle drawing function
+     */
     Triangle,
+    /**
+     * @brief Pixel drawing function
+     */
     Pixel,
+    /**
+     * @brief Line drawing function
+     */
     Line,
+    /**
+     * @brief Text drawing function
+     */
     Text,
+    /**
+     * @brief Image drawing function
+     */
     Image,
+    /**
+     * @brief Button drawing function
+     */
     Button,
+    /**
+     * @brief Vertical scrollbar drawing function
+     */
     VerticalScroll,
+    /**
+     * @brief Menu item drawing function
+     */
     MenuItem,
+    /**
+     * @brief Menu drawing function
+     */
     Menu,
+    /**
+     * @brief UI group drawing function
+     */
     UiGroup
 };
 
@@ -74,26 +132,50 @@ struct mgui_input_state {
     int value_1;
 };
 
+/**
+ * @brief
+ * A simple node structure for the mgui_list class.
+ */
 template <typename O>
 struct mgui_list_node {
+    /**
+     * @brief
+     * Object of any type to be stored in the list.
+     */
     O obj;
+    /**
+     * @brief
+     * Pointer to the next element in the list.
+     */
     mgui_list_node* next = nullptr;
 };
 
-template <typename T>
 /**
  * @brief
  * A simple list class that can be used for various object types.
  * It is created to avoid using standard functions.
  */
+template <typename T>
 class mgui_list {
 public:
+    /**
+     * @brief Constructor for the mgui_list class.
+     * Initializes the head, tail, and counter members to nullptr and 0 respectively.
+     */
     mgui_list() {
         head = nullptr;
         tail = nullptr;
         counter = 0;
     }
 
+    /**
+     * @brief Copy constructor for the mgui_list class.
+     *
+     * This constructor makes a copy of the elements in the list by iterating
+     * over the list and calling the add function for each element.
+     *
+     * @param other The mgui_list object to be copied.
+     */
     mgui_list(const mgui_list& other) {
         head = nullptr;
         tail = nullptr;
@@ -104,20 +186,40 @@ public:
         }
     }
 
+    /**
+     * @brief Move constructor for the mgui_list class.
+     *
+     * This constructor moves the elements from the other list to this list.
+     *
+     * @param other The mgui_list object to move from.
+     */
     mgui_list(mgui_list&& other) noexcept {
+        // Move the elements from the other list to this list
         head = other.head;
         tail = other.tail;
         counter = other.counter;
 
+        // Reset the other list
         other.head = nullptr;
         other.tail = nullptr;
         other.counter = 0;
     }
 
+    /**
+     * @brief Destructor for the mgui_list class.
+     *
+     * Destroys all elements in the list and cleans up the memory.
+     */
     ~mgui_list() {
         clear();
     }
 
+    /**
+     * @brief Copy assignment operator.
+     * 
+     * @param other The mgui_list object to be copied.
+     * @return A reference to the current mgui_list object.
+     */
     mgui_list& operator=(const mgui_list& other) {
         if (this != &other) {
             clear();
@@ -128,14 +230,23 @@ public:
         return *this;
     }
 
+    /**
+     * @brief Move assignment operator.
+     * 
+     * @param other The mgui_list object to move from.
+     * @return A reference to the current mgui_list object.
+     */
     mgui_list& operator=(mgui_list&& other) noexcept {
         if (this != &other) {
+            // Clear current list
             clear();
 
+            // Move elements from other list
             head = other.head;
             tail = other.tail;
             counter = other.counter;
 
+            // Reset other list
             other.head = nullptr;
             other.tail = nullptr;
             other.counter = 0;
@@ -280,11 +391,23 @@ template <typename T>
  */
 class mgui_stack {
 public:
-    mgui_stack() {
+    /**
+     * @brief Constructor for mgui_stack
+     *
+     * Initializes the head of the stack to nullptr.
+     */
+    mgui_stack() { 
+        // Initialize the head of the stack to nullptr
         head_ = nullptr;
     }
 
+    /**
+     * @brief Destructor for mgui_stack
+     *
+     * The destructor removes all the elements from the stack and deletes them.
+     */
     virtual ~mgui_stack() {
+        // Keep removing elements from the stack until it is empty
         while (head_ != nullptr) {
             pop();
         }
@@ -338,18 +461,39 @@ public:
         str_ = nullptr;
     }
 
+    /**
+     * @brief Constructs a `mgui_string` object from a C-style string.
+     * @param str the C-style string to initialize the `mgui_string` object with
+     */
     mgui_string(const char* str) {
         build(str);
     }
 
+    /**
+     * @brief Copy constructor
+     * @param other The object to copy from
+     */
     mgui_string(const mgui_string& other) {
         build(other.c_str());
     }
 
+    /**
+     * @brief Destructor. Deletes the C-style string.
+     */
     ~mgui_string() {
         clear();
     }
 
+    /**
+     * @brief
+     * Subscript operator.
+     *
+     * Returns the character at the specified index in the string.
+     * If the index is out of range, returns null character.
+     *
+     * @param index the index of the character to retrieve
+     * @return the character at the specified index, or null character if index is out of range
+     */
     const char operator[](int index) {
         if (strlen(str_) != str_length_) {
             return '\0';
@@ -358,6 +502,15 @@ public:
         return str_[index];
     }
 
+    /**
+     * @brief
+     * Assignment operator.
+     *
+     * Copies a C-style string to the `mgui_string` object.
+     *
+     * @param str the C-style string to copy
+     * @return a reference to the `mgui_string` object
+     */
     mgui_string operator=(const char* str) {
         if (str != nullptr) {
             clear();
@@ -366,30 +519,64 @@ public:
         return *this;
     }
 
+    /**
+     * @brief
+     * Assignment operator.
+     *
+     * Copies the content of another `mgui_string` object to this object.
+     *
+     * @param other the `mgui_string` object to copy from
+     * @return a reference to this `mgui_string` object
+     */
     mgui_string operator=(const mgui_string& other) noexcept {
+        // If the current string is not empty, clear it
         if (this->str_ != nullptr) {
             clear();
         }
         
+        // If the current object is not the same as the other object, copy the content
         if (this != &other) {
             build(other.c_str());
         }
+        
         return *this;
     }
 
+    /**
+     * @brief
+     * Equality operator.
+     *
+     * Compares the content of this `mgui_string` object with another `mgui_string` object.
+     *
+     * @param str the `mgui_string` object to compare with
+     * @return `true` if the content of the two `mgui_string` objects are equal, `false` otherwise
+     */
     bool operator==(const mgui_string& str) const {
+        // If the lengths of the two strings are not equal, they are not equal
         if (str.str_length_ != str_length_) {
             return false;
         }
 
+        // Compare the content of the two strings using memcmp
         return memcmp(str_, str.str_, str_length_) == 0;
     }
 
+    /**
+     * @brief
+     * Equality operator.
+     *
+     * Compares the content of this `mgui_string` object with a C-style string.
+     *
+     * @param str the C-style string to compare with
+     * @return `true` if the content of the `mgui_string` object and the C-style string are equal, `false` otherwise
+     */
     bool operator==(const char* str) const {
+        // If the lengths of the string and the `mgui_string` object are not equal, they are not equal
         if (strlen(str) != str_length_) {
             return false;
         }
 
+        // Compare the content of the string and the `mgui_string` object using memcmp
         return memcmp(str_, str, str_length_) == 0;
     }
 
@@ -480,10 +667,23 @@ template <typename V>
  */
 class mgui_string_map {
 public:
+    /**
+     * @brief Constructor.
+     *
+     * Initializes the map by calling the clear method.
+     */
     mgui_string_map() {
+        // Call clear method to initialize the map
         clear();
     }
+
+    /**
+     * @brief Destructor.
+     *
+     * Frees all allocated memory.
+     */
     ~mgui_string_map() {
+        // Free all allocated memory
         clear();
     }
 
@@ -601,7 +801,7 @@ private:
         unsigned long hash = 5381;
         int c;
 
-        while (c = *data++) {
+        while ((c = *data++)) {
             hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
         }
         return hash % HASH_TABLE_SIZE;
@@ -1028,15 +1228,28 @@ public:
         }
     }
 
+    /**
+     * @brief Draw an image on the LCD buffer.
+     * 
+     * @param image A pointer to the image property object.
+     * @param x The x-coordinate of the upper left corner of the image.
+     * @param y The y-coordinate of the upper left corner of the image.
+     * @param invert If true, the buffer color of the image will be inverted. Default is false.
+     */
     inline void draw_image(const mgui_image_property *image,
                           const int& x,
                           const int& y,
                           bool invert = false) {
         
+        // Iterate over the image height
         for (int y1 = 0; y1 < image->height(); y1++) {
+            // Iterate over the image width
             for (int x1 = 0; x1 < image->width(); x1++) {
+                // Calculate the position in the image resource
                 int pos = y1 / 8 * image->width() + x1;
+                // Check if the bit at the current position is set
                 bool checkbit = check_bit_on(x1, y1, image->resource()[pos]);
+                // Draw the pixel on the LCD buffer if the bit is set
                 if (checkbit) {
                     draw_pixel(x + x1, y + y1, (invert) ? !checkbit : checkbit);
                 }
@@ -1499,18 +1712,49 @@ private:
 
 class mgui_padding_property {
 public:
+    /**
+     * @brief Construct a new mgui_padding_property object with default padding values.
+     *
+     * Sets the left, up, right and down padding values to 0.
+     */
     mgui_padding_property() {
+        // Set the default down padding value to 0.
         down_ = 0;
+
+        // Set the default left padding value to 0.
         left_ = 0;
+
+        // Set the default up padding value to 0.
         up_ = 0;
+
+        // Set the default right padding value to 0.
         right_ = 0;
     }
 
+    /**
+     * @brief Overload of the equality operator for mgui_padding_property objects.
+     *
+     * This function checks if the left, up, right and down padding values of two
+     * mgui_padding_property objects are equal.
+     *
+     * @param other The mgui_padding_property object to compare against.
+     * @return true If all padding values are equal.
+     * @return false If any of the padding values are not equal.
+     */
     bool operator==(const mgui_padding_property& other) const
     {
         return left_ == other.left_ && up_ == other.up_ && right_ == other.right_ && down_ == other.down_;
     }
 
+    /**
+     * @brief Overload of the assignment operator for mgui_padding_property objects.
+     *
+     * This function copies the values of the left, up, right and down padding properties
+     * from the provided object to the current object.
+     *
+     * @param other The mgui_padding_property object to copy from.
+     * @return Reference to the current object.
+     */
     mgui_padding_property operator=(const mgui_padding_property& other) noexcept {
         if (this != &other) {
             this->left_ = other.left_;
@@ -1540,6 +1784,10 @@ private:
     uint16_t down_;
 };
 
+/**
+ * @brief The mgui_text_property class represents a property of text with a font.
+ * This class is used to define a text with a font in mGUI.
+ */
 class mgui_text_property {
 public:
     /**
@@ -1559,7 +1807,13 @@ public:
         }
     }
 
+    /**
+     * @brief Destructor of mgui_text_property.
+     *
+     * This destructor is responsible for releasing the memory allocated for the text.
+     */
     virtual ~mgui_text_property() {
+        // Call the clear function to release the allocated memory
         clear();
     }
 
@@ -1994,7 +2248,12 @@ private:
 };
 
 /**
- * @brief It draws text.
+ * @brief The mgui_text class is a UI object that displays text.
+ * 
+ * This class is used to display text on the screen.
+ * The text is displayed using the mgui_font_property class.
+ * The text can be displayed at a specified position on the screen. 
+ * The position is specified by the x and y coordinates.
  */
 class mgui_text : mgui_object {
 public:
@@ -2146,7 +2405,7 @@ public:
         move_ = move;
         moved_per_frame_ = per_frame;
         moved_amount_of_movement_ = amount_of_movement;
-        moved_x_counter_ = 0;
+        if(!move) moved_x_counter_ = 0;
     }
 
 private:
@@ -2372,11 +2631,26 @@ public:
     uint16_t selected_index_;
 };
 
+/**
+ * @brief Type of menu item
+ */
 enum class mgui_menu_item_type {
+    /** 
+     * @brief No operation
+     */
     None,
+    /** 
+     * @brief Check box
+     */
     Check,
+    /** 
+     * @brief Menu item with a child menu
+     */
     Menu,
-    ReturnToParentMenu
+    /** 
+     * @brief Item to return to the parent menu
+     */
+    ReturnToParent
 };
 
 class mgui_menu_item : public mgui_core_ui {
@@ -2435,6 +2709,7 @@ public:
  
         if (text_) {
             text_->set_invert(focus);
+            text_->set_move(focus);
             text_->update(draw, input, current_group);
         }
 
@@ -2449,7 +2724,7 @@ public:
         case mgui_menu_item_type::Menu:
             draw_menu_guide(draw, input, current_group, focus);
             break;
-        case mgui_menu_item_type::ReturnToParentMenu:
+        case mgui_menu_item_type::ReturnToParent:
             draw_return_menu_guide(draw, input, current_group, focus);
             break;
         default:
@@ -2520,7 +2795,7 @@ public:
             return;
         }
 
-        if (item_type_ == mgui_menu_item_type::ReturnToParentMenu) {
+        if (item_type_ == mgui_menu_item_type::ReturnToParent) {
             text_->set_x(h + text_rel_x_);
         }
         else {
@@ -2559,7 +2834,7 @@ public:
 
     inline void set_return_menu(bool init_value) {
         is_return_menu_ = init_value;
-        item_type_ = mgui_menu_item_type::ReturnToParentMenu;
+        item_type_ = mgui_menu_item_type::ReturnToParent;
     }
     inline bool return_menu() const { return is_return_menu_; }
 
@@ -2622,6 +2897,13 @@ private:
 
 class mgui_menu : mgui_object {
 public:
+
+    /**
+     * @brief Constructor.
+     * @param width Target screen width
+     * @param height Target screen height
+     * @param item_view_count Count of items in each view
+     */
     explicit mgui_menu(const uint16_t width, const uint16_t height, const uint16_t item_view_count = 4){
         moved_from_ = new mgui_stack<mgui_menu_property>();
         window_width_ = width;
@@ -2632,10 +2914,17 @@ public:
         on_enter_ = false;
         input_event_callback_ = nullptr;
     }
+
+    /**
+     * @brief Destructor.
+     */
     ~mgui_menu(){
         delete moved_from_;
     }
 
+    /**
+     * @brief Copy constructor.
+     */
     mgui_menu operator=(const mgui_menu& other) noexcept {
         if (this != &other) {
             this->moved_from_ = other.moved_from_;
@@ -2650,8 +2939,18 @@ public:
         return *this;
     }
 
+    /**
+     * @brief Returns the type of the object.
+     */
     mgui_object_type type() const { return mgui_object_type::Menu; }
 
+    /**
+     * @brief Updates the menu items by calling the input event callback
+     *  and updating each menu item's draw position.
+     * @param draw pointer to the draw object
+     * @param input pointer to the input state object
+     * @param current_group pointer to the current group string
+     */
     void update(mgui_draw* draw, mgui_input_state* input, mgui_string* current_group) {
         if (input_event_callback_) {
             input_event_callback_(this, input, current_group);
@@ -2668,6 +2967,10 @@ public:
         }
     }
 
+    /**
+     * @brief Add a menu item to the menu and set it as selected if it's the only item.
+     * @param item pointer to the menu item to add
+     */
     inline void add(mgui_menu_item* item) {
         p.menu_item_.add(item);
 
@@ -2677,6 +2980,10 @@ public:
         }
     }
 
+	/**
+	 * @brief Remove a menu item from the menu
+	 * @param item pointer to the menu item to remove
+	 */
     inline void remove(mgui_menu_item* item) {
         if(item_first_node_!= nullptr && item_first_node_->obj == item){
             item_first_node_ = nullptr;
@@ -2689,7 +2996,15 @@ public:
         }
     }
 
+    /**
+     * @brief Return the index of the currently selected item.
+     */
     inline uint16_t selected_index() const { return p.selected_index_; }
+    
+    /**
+     * @brief Set the index of the currently selected item.
+     * @param index_ index of the selected item.
+     */
     inline void set_selected_index(uint16_t index_){
         p.selected_index_ = index_;
         int first = ((index_ + 1 - item_view_count_) > 0)? index_ + 1 - item_view_count_ : 0;
@@ -2702,8 +3017,14 @@ public:
         }
     }
 
+    /**
+     * @brief Return the property of the menu.
+     */
     inline mgui_menu_property* get_property() { return p.get_property(); }
 
+    /**
+     * @brief Return the currently selected menu item.
+     */
     inline mgui_menu_item* get_selected_item() {
         return static_cast<mgui_menu_item*>(p.menu_item_.get(p.selected_index_));
     }
@@ -2739,7 +3060,7 @@ public:
 
         // Return from item
         if (on_enter
-         && item->item_type() == mgui_menu_item_type::ReturnToParentMenu
+         && item->item_type() == mgui_menu_item_type::ReturnToParent
          && moved_from_->is_empty() == false) {
             p = static_cast<mgui_menu_property&&>(moved_from_->pop());
             return;
@@ -2799,19 +3120,19 @@ public:
         }
     }
 
-     /**
-      * @brief Set the input event handler object
-      * 
-      * @param event_callback 
-      * Implement functions to change the state of the gui and operate other non-gui functions
-      * using functions set in mgui_menu using the value of mgui_input_state
-      * (the result of input reading set in mgui_input). 
-      * The set function is called each time before drawing is updated.
-      */
-     inline void set_input_event_handler(
-         void (*event_callback)(mgui_menu* sender, const mgui_input_state state[], mgui_string* current_group)) {
-         input_event_callback_ = event_callback;
-     }
+    /**
+    * @brief Set the input event handler object
+    * 
+    * @param event_callback 
+    * Implement functions to change the state of the gui and operate other non-gui functions
+    * using functions set in mgui_menu using the value of mgui_input_state
+    * (the result of input reading set in mgui_input). 
+    * The set function is called each time before drawing is updated.
+    */
+    inline void set_input_event_handler(
+        void (*event_callback)(mgui_menu* sender, const mgui_input_state state[], mgui_string* current_group)) {
+        input_event_callback_ = event_callback;
+    }
 
     inline uint16_t item_view_count() const { return item_view_count_; }
     inline void set_item_view_count(uint16_t item_view_count) { item_view_count_ = item_view_count; }
@@ -2883,6 +3204,13 @@ public:
          input_event_callback_ = event_callback;
      }
 
+    /**
+     * @brief
+     * Updates the UI group by calling the input event callback and updating each UI object.
+     * @param draw Pointer to the draw object.
+     * @param input Pointer to the input state object.
+     * @param current_group Pointer to the current group string.
+     */
     void update(mgui_draw* draw, mgui_input_state* input, mgui_string* current_group) {
         if (input_event_callback_) {
             input_event_callback_(this, input, current_group);
@@ -3020,6 +3348,15 @@ public:
         input_event_callback_ = nullptr;
     }
 
+    /**
+     * Constructs a new mgui_vertical_scrollbar object with the specified x, y, width, height, and count.
+     *
+     * @param x The x-coordinate of the scrollbar.
+     * @param y The y-coordinate of the scrollbar.
+     * @param width The width of the scrollbar.
+     * @param height The height of the scrollbar.
+     * @param count The number of items to scroll.
+     */
     explicit mgui_vertical_scrollbar(uint16_t x, uint16_t y, uint16_t width, uint16_t height, int count)
         : mgui_vertical_scrollbar(){
         set_x(x);
@@ -3047,6 +3384,15 @@ public:
         input_event_callback_ = event_callback;
     }
 
+   /**
+    * @brief Updates the state of the vertical scrollbar.
+    * 1. If the count is less than 1, the function returns early.
+    * 2. If an input event callback is set, it is called with the current object, input state, and current group.
+    *
+    * @param draw Pointer to the draw object used for rendering.
+    * @param input Pointer to the input state object containing input data.
+    * @param current_group Pointer to the current group string.
+    */
     void update(mgui_draw* draw, mgui_input_state* input, mgui_string* current_group) {
         if (count_ < 1) {
             return;
@@ -3062,6 +3408,10 @@ public:
         cursor_.update(draw, input, current_group);
     }
 
+    /**
+     * @brief Sets the count of items and updates the height of the cursor accordingly.
+     * @param count The new count of items.
+     */
     inline void set_count(const int count) {
         count_ = count;
         full_cursor_height_ = frame_.height() - 4;
@@ -3107,30 +3457,53 @@ public:
     inline uint16_t current_index() const { return current_index_; }
 
     inline uint16_t radius() const { return frame_.radius(); }
+    
+    /**
+     * @brief Sets the radius of the object.
+     * @param r The new radius value.
+     */
     inline void set_radius(uint16_t r) {
         frame_.set_radius(r);
         cursor_.set_radius(r - 1);
     }
 
-    /**
-     *  > 5
-     */
     inline uint16_t width() const { return frame_.width(); }
+
+    /**
+     * @brief Set the width of the object.
+     * @note Width value must be > 5.
+     * @param width The new width value.
+     */
     inline void set_width(uint16_t width) {
         frame_.set_width(width);
         cursor_.set_width(width - 4);
     }
 
     inline uint16_t height() const { return frame_.height(); }
+
+    /**
+     * @brief Set the height
+     * @param height 
+     */
     inline void set_height(uint16_t height) { frame_.set_height(height); }
 
     inline uint16_t x() const { return frame_.x(); }
+
+    /**
+     * @brief Set the x-coordinate of the object.
+     * @param x The new x-coordinate.
+     */
     inline void set_x(uint16_t x) {
         frame_.set_x(x);
         cursor_.set_x(x + 2);
     }
 
     inline uint16_t y() const { return frame_.y(); }
+
+    /**
+     * @brief Set the y-coordinate of the object.
+     * @param y The new y-coordinate.
+     */
     inline void set_y(uint16_t y) {
         frame_.set_y(y);
         cursor_.set_y(y + 2);
