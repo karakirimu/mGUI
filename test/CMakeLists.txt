@@ -5,6 +5,9 @@ project ("mGUI-test")
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Install CTest
+include(CTest)
+
 # Install GoogleTest
 include(FetchContent)
 FetchContent_Declare(
@@ -16,19 +19,15 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-include_directories(${CMAKE_SOURCE_DIR}/gtest/include)
-
-enable_testing()
-
 add_executable(
-  mgui_test
+  ${PROJECT_NAME}
   mgui_test.cc
 )
 target_link_libraries(
-  mgui_test
+  ${PROJECT_NAME}
   GTest::gtest_main
   GTest::gmock_main
 )
 
-include(GoogleTest)
-gtest_discover_tests(mgui_test)
+add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
+enable_testing()
